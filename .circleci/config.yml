@@ -1,0 +1,179 @@
+version: 2.0
+
+filters: &filters
+  filters:
+    tags:
+      only: /^v[0-9]+(\.[0-9]+)*$/
+
+filters__tags: &filters__tags
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      only: /^v[0-9]+(\.[0-9]+)*$/
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - cache:
+          <<: *filters
+      - build:
+          <<: *filters
+          requires:
+            - cache
+      - test--snowflake:
+          <<: *filters
+          requires:
+            - cache
+      - test-release:
+          <<: *filters__tags
+          requires:
+            - test--snowflake
+            - build
+      - approve-release:
+          <<: *filters__tags
+          type: approval
+          requires:
+            - test-release
+      - release:
+          <<: *filters__tags
+          requires:
+            - approve-release
+
+cache: &cache deps-v0-{{ checksum "setup.py" }}
+
+restore__cache: &restore__cache
+  restore_cache:
+    keys:
+      - *cache
+
+jobs:
+  cache:
+    working_directory: /code/
+    docker:
+      - image: python:3.7.3-stretch
+    steps:
+      - checkout
+      - *restore__cache
+
+      - run:
+          name: Install target-snowflake
+          command: |
+            python -m venv venv--target-snowflake
+            source venv--target-snowflake/bin/activate
+            python setup.py install
+            deactivate
+
+      - save_cache:
+          key: *cache
+          paths:
+            - "./venv--target-snowflake"
+            - "/usr/local/bin"
+            - "/usr/local/lib/python3.7/site-packages"
+
+      - persist_to_workspace:
+          root: "./"
+          paths:
+            - "./venv--target-snowflake"
+
+  test--snowflake:
+    docker:
+      - image: python:3.7.3-stretch
+    working_directory: /code/
+    steps:
+      - checkout
+      - *restore__cache
+      - attach_workspace:
+          at: "./"
+      - add_ssh_keys:
+          fingerprints:
+            - "92:84:94:14:49:9d:42:5a:67:ea:92:ee:1a:58:98:f6"
+      - run:
+          name: Run Tests
+          command: |
+            source venv--target-snowflake/bin/activate
+            ## To avoid collision with other running tests
+            export TARGET_KEY_PREFIX="circleci_target_snowflake_test_`date +%s`__"
+            export SNOWFLAKE_SCHEMA="$TARGET_S3_KEY_PREFIX"
+
+            python setup.py pytest --verbose
+
+      - store_artifacts:
+          path: target/test-results
+          destination: raw-test-output
+
+  build:
+    working_directory: /code/
+    docker:
+      - image: python:3.7.3-stretch
+    steps:
+      - checkout
+      - *restore__cache
+      - attach_workspace:
+          at: "./"
+      - run:
+          name: Build disttribution
+          command: |
+            source venv--target-snowflake/bin/activate
+
+            pip install --upgrade setuptools wheel twine
+
+            python setup.py sdist bdist_wheel
+
+            deactivate
+
+      - persist_to_workspace:
+          root: "./"
+          paths:
+            - "./dist"
+
+  test-release:
+    working_directory: /code/
+    docker:
+      - image: python:3.7.3-stretch
+    steps:
+      - checkout
+      - *restore__cache
+      - attach_workspace:
+          at: "./"
+      - run:
+          name: Validate tag
+          command: |
+            export TAG=`echo $CIRCLE_TAG | sed 's/v//'`
+            VERSION=`grep version setup.py | sed 's/^.*version="\(.*\)",.*$/\1/'`
+
+            echo tag: $TAG equals version: $VERSION '?'
+
+            [[ $TAG == $VERSION ]]
+      - run:
+          name: Install upload tools
+          command: pip install --upgrade twine
+      - run:
+          name: Test Publish
+          environment:
+            TWINE_USERNAME: datamill
+            TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+          command: |
+            export TWINE_PASSWORD=$PYPI__PASSWORD__TEST
+            twine upload ./dist/*
+
+  release:
+    working_directory: /code/
+    docker:
+      - image: python:3.7.3-stretch
+    steps:
+      - checkout
+      - *restore__cache
+      - attach_workspace:
+          at: "./"
+      - run:
+          name: Install upload tools
+          command: pip install --upgrade twine
+      - run:
+          name: Publish
+          environment:
+            TWINE_USERNAME: datamill
+          command: |
+            export TWINE_PASSWORD=$PYPI__PASSWORD
+            twine upload ./dist/*

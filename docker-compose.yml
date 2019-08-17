@@ -1,0 +1,11 @@
+version: "2"
+services:
+  target-snowflake:
+    image: python:3.7.3-stretch
+    working_dir: /code
+    entrypoint: /code/docker-entrypoint.sh
+    environment:
+      PLACEHOLDER: "todo"
+
+    volumes:
+      - .:/code
