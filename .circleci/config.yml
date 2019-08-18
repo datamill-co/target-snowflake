@@ -22,14 +22,14 @@ workflows:
           <<: *filters
           requires:
             - cache
-      - test--snowflake:
-          <<: *filters
-          requires:
-            - cache
+      # - test--snowflake:
+      #     <<: *filters
+      #     requires:
+      #       - cache
       - test-release:
           <<: *filters__tags
           requires:
-            - test--snowflake
+            # - test--snowflake
             - build
       - approve-release:
           <<: *filters__tags
