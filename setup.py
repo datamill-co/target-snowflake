@@ -19,6 +19,7 @@ setup(
     classifiers=['Programming Language :: Python :: 3 :: Only'],
     py_modules=['target_snowflake'],
     install_requires=[
+        'singer-python==5.6.1', # Dependency conflict with snowflake
         'singer-target-postgres==0.1.9',
         'snowflake-connector-python==1.8.7'
     ],
