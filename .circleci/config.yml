@@ -62,7 +62,7 @@ jobs:
           command: |
             python -m venv venv--target-snowflake
             source venv--target-snowflake/bin/activate
-            python setup.py install
+            pip install -e.[tests]
             deactivate
 
       - save_cache:
@@ -97,7 +97,7 @@ jobs:
             export TARGET_KEY_PREFIX="circleci_target_snowflake_test_`date +%s`__"
             export SNOWFLAKE_SCHEMA="$TARGET_S3_KEY_PREFIX"
 
-            python setup.py pytest --verbose
+            pytest --verbose
 
       - store_artifacts:
           path: target/test-results
