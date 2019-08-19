@@ -2,7 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/datamill-co/target-snowflake.svg?style=svg)](https://circleci.com/gh/datamill-co/target-snowflake)
 
-[![PyPI version](https://badge.fury.io/py/singer-target-snowflake.svg)](https://pypi.org/project/singer-target-snowflake/)
+[![PyPI version](https://badge.fury.io/py/target-snowflake.svg)](https://pypi.org/project/target-snowflake/)
 
 [![](https://img.shields.io/librariesio/github/datamill-co/target-snowflake.svg)](https://libraries.io/github/datamill-co/target-snowflake)
 
