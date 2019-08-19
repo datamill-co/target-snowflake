@@ -12,9 +12,71 @@ A [Singer](https://singer.io/) Snowflake target, for use with Singer streams gen
 
 [Docs](https://docs.snowflake.net/manuals/user-guide/python-connector.html)
 
-## TODO
+## Install
 
-Implement.
+```sh
+pip install target-snowflake
+```
+
+## Usage
+
+1. Follow the
+   [Singer.io Best Practices](https://github.com/singer-io/getting-started/blob/master/docs/RUNNING_AND_DEVELOPING.md#running-a-singer-tap-with-a-singer-target)
+   for setting up separate `tap` and `target` virtualenvs to avoid version
+   conflicts.
+
+1. Create a [config file](#configjson) at
+   `~/singer.io/target_snowflake_config.json` with Snowflake connection
+   information and target Snowflake schema and warehouse.
+
+   ```json
+   {
+     "snowflake_account": "https://XXXXX.snowflakecomputing.com",
+     "snowflake_username": "myuser",
+     "snowflake_password": "1234",
+     "snowflake_database": "my_analytics",
+     "snowflake_schema": "mytapname",
+     "snowflake_warehouse": "dw"
+   }
+   ```
+
+````
+
+1. Run `target-snowfkajke` against a [Singer](https://singer.io) tap.
+
+ ```bash
+ ~/.virtualenvs/tap-something/bin/tap-something \
+   | ~/.virtualenvs/target-snowflake/bin/target-snowflake \
+     --config ~/singer.io/target_snowflake_config.json >> state.json
+````
+
+If you are running windows, the following is equivalent:
+
+```
+venvs\tap-exchangeratesapi\Scripts\tap-exchangeratesapi.exe | ^
+venvs\target-snowflake\Scripts\target-snowlfake.exe ^
+--config target_snowflake_config.json
+```
+
+### Config.json
+
+The fields available to be specified in the config file are specified
+here.
+
+| Field                       | Type                  | Default    | Details                                                                                                                                                                                                                                                                                            |
+| --------------------------- | --------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `snowflake_account`         | `["string"]`          | `N/A`      | Eg. `https://XXXXX.snowflakecomputing.com` [Refer to Snowflake's documentation about Account](https://docs.snowflake.net/manuals/user-guide/connecting.html#your-snowflake-account-name-and-url)                                                                                                   |
+| `snowflake_username`        | `["string"]`          | `N/A`      |                                                                                                                                                                                                                                                                                                    |
+| `snowflake_password`        | `["string", "null"]`  | `null`     |                                                                                                                                                                                                                                                                                                    |
+| `snowflake_database`        | `["string"]`          | `N/A`      |                                                                                                                                                                                                                                                                                                    |
+| `snowflake_schema`          | `["string", "null"]`  | `"public"` |                                                                                                                                                                                                                                                                                                    |
+| `snowflake_warehouse`       | `["string"]`          | `N/A`      |                                                                                                                                                                                                                                                                                                    |
+| `invalid_records_detect`    | `["boolean", "null"]` | `true`     | Include `false` in your config to disable crashing on invalid records                                                                                                                                                                                                                              |
+| `invalid_records_threshold` | `["integer", "null"]` | `0`        | Include a positive value `n` in your config to allow at most `n` invalid records per stream before giving up.                                                                                                                                                                                      |
+| `disable_collection`        | `["string", "null"]`  | `false`    | Include `true` in your config to disable [Singer Usage Logging](#usage-logging).                                                                                                                                                                                                                   |
+| `logging_level`             | `["string", "null"]`  | `"INFO"`   | The level for logging. Set to `DEBUG` to get things like queries executed, timing of those queries, etc. See [Python's Logger Levels](https://docs.python.org/3/library/logging.html#levels) for information about valid values.                                                                   |
+| `persist_empty_tables`      | `["boolean", "null"]` | `False`    | Whether the Target should create tables which have no records present in Remote.                                                                                                                                                                                                                   |
+| `state_support`             | `["boolean", "null"]` | `True`     | Whether the Target should emit `STATE` messages to stdout for further consumption. In this mode, which is on by default, STATE messages are buffered in memory until all the records that occurred before them are flushed according to the batch flushing schedule the target is configured with. |
 
 ## Sponsorship
 
