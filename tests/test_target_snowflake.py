@@ -1,5 +1,6 @@
 from copy import deepcopy
 from datetime import datetime
+from snowflake.connector import connect
 
 import psycopg2
 from psycopg2 import sql
@@ -138,14 +139,21 @@ def assert_records(conn, records, table_name, pks, match_pks=False):
             if match_pks:
                 assert sorted(list(persisted_records.keys())) == sorted(records_pks)
 
-@pytest.mark.xfail
-def test_loading__invalid__configuration__schema(db_prep):
-    stream = CatStream(1)
-    stream.schema = deepcopy(stream.schema)
-    stream.schema['schema']['type'] = 'invalid type for a JSON Schema'
 
-    with pytest.raises(TargetError, match=r'.*invalid JSON Schema instance.*'):
-        main(CONFIG, input_stream=stream)
+def test_connect():
+    with connect(
+            user=CONFIG.get('snowflake_username'),
+            password=CONFIG.get('snowflake_password'),
+            account=CONFIG.get('snowflake_account'),
+            warehouse=CONFIG.get('snowflake_warehouse'),
+            database=CONFIG.get('snowflake_database')
+    ) as connection:
+        with connection.cursor() as cur:
+            assert cur.execute('select 1').fetchall()
+
+
+def test_loading__empty():
+    stream = CatStream(0)
 
 @pytest.mark.xfail
 def test_loading__simple(db_prep):
