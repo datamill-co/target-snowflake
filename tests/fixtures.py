@@ -10,11 +10,21 @@ from psycopg2 import sql
 import pytest
 
 CONFIG = {
+    'snowflake_account': os.environ['SNOWFLAKE_ACCOUNT'],
+    'snowflake_database': os.environ['SNOWFLAKE_DATABASE'],
+    'snowflake_warehouse': os.environ['SNOWFLAKE_WAREHOUSE'],
+    'snowflake_username': os.environ['SNOWFLAKE_USERNAME'],
+    'snowflake_password': os.environ['SNOWFLAKE_PASSWORD'],
     'disable_collection': True,
     'logging_level': 'DEBUG'
 }
 
 TEST_DB = {
+    'account': CONFIG['snowflake_account'],
+    'warehouse': CONFIG['snowflake_warehouse'],
+    'database': CONFIG['snowflake_database'],
+    'user': CONFIG['snowflake_username'],
+    'password': CONFIG['snowflake_password'],
 }
 
 fake = Faker()

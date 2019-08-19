@@ -25,15 +25,14 @@ class SnowflakeTarget(PostgresTarget):
     DEFAULT_COLUMN_LENGTH = 1000
     MAX_VARCHAR = 65535
 
-    def __init__(self, connection, s3, *args, logging_level=None,
+    def __init__(self, connection, *args, schema='public', logging_level=None,
                  default_column_length=DEFAULT_COLUMN_LENGTH, persist_empty_tables=False, **kwargs):
         self.LOGGER.info(
             'SnowflakeTarget created with established connection: `{}`'.format(connection.dsn))
 
-        self.s3 = s3
         self.default_column_length = default_column_length
         ## TODO: Remove?
-        PostgresTarget.__init__(self, connection, postgres_schema='NA', logging_level=logging_level,
+        PostgresTarget.__init__(self, connection, postgres_schema=schema, logging_level=logging_level,
                                 persist_empty_tables=persist_empty_tables)
 
     def write_batch(self, stream_buffer):

@@ -9,6 +9,11 @@ from target_snowflake.snowflake import SnowflakeTarget
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = [
+    'snowflake_account',
+    'snowflake_warehouse',
+    'snowflake_database',
+    'snowflake_username',
+    'snowflake_password'
 ]
 
 
@@ -23,8 +28,8 @@ def main(config, input_stream=None):
     ) as connection:
         target = SnowflakeTarget(
             connection,
+            schema=config.get('snowflake_schema', 'public'),
             logging_level=config.get('logging_level'),
-            default_column_length=config.get('default_column_length', 1000),
             persist_empty_tables=config.get('persist_empty_tables')
         )
 
