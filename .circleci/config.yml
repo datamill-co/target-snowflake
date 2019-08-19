@@ -98,6 +98,9 @@ jobs:
             export SNOWFLAKE_SCHEMA="$TARGET_S3_KEY_PREFIX"
 
             pytest --verbose
+          environment:
+            SNOWFLAKE_WAREHOUSE: SINGER_DEV
+            SNOWFLAKE_DATABASE: TARGET_SNOWFLAKE_TEST
 
       - store_artifacts:
           path: target/test-results
