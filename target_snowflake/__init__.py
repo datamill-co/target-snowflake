@@ -2,20 +2,23 @@ import singer
 from singer import utils
 import snowflake.connector
 from target_postgres import target_tools
-from target_postgres.postgres import MillisLoggingConnection
 
 from target_snowflake.snowflake import SnowflakeTarget
 
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = [
+    'snowflake_account',
+    'snowflake_warehouse',
+    'snowflake_database',
+    'snowflake_username',
+    'snowflake_password'
 ]
 
 
 def main(config, input_stream=None):
-    with snowflake.connector(
-            connection_factory=MillisLoggingConnection,
-            user=config.get('snowflake_user'),
+    with snowflake.connector.connect(
+            user=config.get('snowflake_username'),
             password=config.get('snowflake_password'),
             account=config.get('snowflake_account'),
             warehouse=config.get('snowflake_warehouse'),
@@ -23,8 +26,8 @@ def main(config, input_stream=None):
     ) as connection:
         target = SnowflakeTarget(
             connection,
+            schema=config.get('snowflake_schema', 'public'),
             logging_level=config.get('logging_level'),
-            default_column_length=config.get('default_column_length', 1000),
             persist_empty_tables=config.get('persist_empty_tables')
         )
 
