@@ -25,15 +25,25 @@ class SnowflakeTarget(PostgresTarget):
     DEFAULT_COLUMN_LENGTH = 1000
     MAX_VARCHAR = 65535
 
-    def __init__(self, connection, *args, schema='public', logging_level=None,
-                 default_column_length=DEFAULT_COLUMN_LENGTH, persist_empty_tables=False, **kwargs):
-        self.LOGGER.info(
-            'SnowflakeTarget created with established connection: `{}`'.format(connection.dsn))
+    def __init__(self, connection, *args, schema='public', logging_level=None, persist_empty_tables=False, **kwargs):
+        self.LOGGER.info('SnowflakeTarget created...')
 
-        self.default_column_length = default_column_length
-        ## TODO: Remove?
-        PostgresTarget.__init__(self, connection, postgres_schema=schema, logging_level=logging_level,
-                                persist_empty_tables=persist_empty_tables)
+        if logging_level:
+            level = logging.getLevelName(logging_level)
+            self.LOGGER.setLevel(level)
+
+        # try:
+        #     connection.initialize(self.LOGGER)
+        #     self.LOGGER.debug('SnowflakeTarget set to log all queries.')
+        # except AttributeError:
+        #     self.LOGGER.debug('SnowflakeTarget disabling logging all queries.')
+
+        self.conn = connection
+        self.postgres_schema = schema
+        self.persist_empty_tables = persist_empty_tables
+        if self.persist_empty_tables:
+            self.LOGGER.debug('SnowflakeTarget is persisting empty tables')
+
 
     def write_batch(self, stream_buffer):
         # WARNING: Using mutability here as there's no simple way to copy the necessary data over

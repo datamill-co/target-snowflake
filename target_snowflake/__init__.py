@@ -2,7 +2,6 @@ import singer
 from singer import utils
 import snowflake.connector
 from target_postgres import target_tools
-from target_postgres.postgres import MillisLoggingConnection
 
 from target_snowflake.snowflake import SnowflakeTarget
 
@@ -18,9 +17,8 @@ REQUIRED_CONFIG_KEYS = [
 
 
 def main(config, input_stream=None):
-    with snowflake.connector(
-            connection_factory=MillisLoggingConnection,
-            user=config.get('snowflake_user'),
+    with snowflake.connector.connect(
+            user=config.get('snowflake_username'),
             password=config.get('snowflake_password'),
             account=config.get('snowflake_account'),
             warehouse=config.get('snowflake_warehouse'),
