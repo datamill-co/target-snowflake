@@ -95,7 +95,7 @@ jobs:
             source venv--target-snowflake/bin/activate
             ## To avoid collision with other running tests
             export TARGET_KEY_PREFIX="circleci_target_snowflake_test_`date +%s`__"
-            export SNOWFLAKE_SCHEMA="$TARGET_S3_KEY_PREFIX"
+            export SNOWFLAKE_SCHEMA="$TARGET_KEY_PREFIX"
 
             pytest --verbose
           environment:
