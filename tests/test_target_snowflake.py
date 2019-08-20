@@ -1,10 +1,7 @@
 from copy import deepcopy
 from datetime import datetime
-from snowflake.connector import connect
 
-import psycopg2
 from psycopg2 import sql
-import psycopg2.extras
 import pytest
 
 from fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, TEST_DB
@@ -12,6 +9,7 @@ from target_postgres import singer_stream
 from target_postgres.target_tools import TargetError
 
 from target_snowflake import main
+from target_snowflake.connection import connect
 
 
 def assert_columns_equal(cursor, table_name, expected_column_tuples):
@@ -86,7 +84,7 @@ def assert_records(conn, records, table_name, pks, match_pks=False):
     if not isinstance(pks, list):
         pks = [pks]
 
-    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+    with conn.cursor(True) as cur:
         cur.execute("set timezone='UTC';")
 
         cur.execute(sql.SQL(
@@ -140,19 +138,13 @@ def assert_records(conn, records, table_name, pks, match_pks=False):
                 assert sorted(list(persisted_records.keys())) == sorted(records_pks)
 
 
-def test_connect():
-    with connect(
-            user=CONFIG.get('snowflake_username'),
-            password=CONFIG.get('snowflake_password'),
-            account=CONFIG.get('snowflake_account'),
-            warehouse=CONFIG.get('snowflake_warehouse'),
-            database=CONFIG.get('snowflake_database')
-    ) as connection:
+def test_connect(db_prep):
+    with connect(**TEST_DB) as connection:
         with connection.cursor() as cur:
             assert cur.execute('select 1').fetchall()
 
 
-def test_loading__empty():
+def test_loading__empty(db_prep):
     stream = CatStream(0)
 
 @pytest.mark.xfail
@@ -160,7 +152,7 @@ def test_loading__simple(db_prep):
     stream = CatStream(100)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             assert_columns_equal(cur,
                                  'cats',
@@ -204,7 +196,7 @@ def test_loading__simple(db_prep):
 def test_loading__nested_tables(db_prep):
     main(CONFIG, input_stream=NestedStream(10))
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('root'))
             assert 10 == cur.fetchone()[0]
@@ -295,7 +287,7 @@ def test_loading__new_non_null_column(db_prep):
 
     main(CONFIG, input_stream=non_null_stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             assert_columns_equal(cur,
                                  'cats',
@@ -334,7 +326,7 @@ def test_loading__column_type_change(db_prep):
     cat_count = 20
     main(CONFIG, input_stream=CatStream(cat_count))
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             assert_columns_equal(cur,
                                  'cats',
@@ -377,7 +369,7 @@ def test_loading__column_type_change(db_prep):
 
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             assert_columns_equal(cur,
                                  'cats',
@@ -424,7 +416,7 @@ def test_loading__column_type_change(db_prep):
 
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             assert_columns_equal(cur,
                                  'cats',
@@ -468,7 +460,7 @@ def test_loading__multi_types_columns(db_prep):
     stream_count = 50
     main(CONFIG, input_stream=MultiTypeStream(stream_count))
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             assert_columns_equal(cur,
                                  'root',
@@ -512,7 +504,7 @@ def test_upsert(db_prep):
     stream = CatStream(100)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             assert cur.fetchone()[0] == 100
@@ -521,7 +513,7 @@ def test_upsert(db_prep):
     stream = CatStream(100)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             assert cur.fetchone()[0] == 100
@@ -530,7 +522,7 @@ def test_upsert(db_prep):
     stream = CatStream(200)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             assert cur.fetchone()[0] == 200
@@ -541,7 +533,7 @@ def test_nested_delete_on_parent(db_prep):
     stream = CatStream(100, nested_count=3)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats__adoption__immunizations'))
             high_nested = cur.fetchone()[0]
@@ -550,7 +542,7 @@ def test_nested_delete_on_parent(db_prep):
     stream = CatStream(100, nested_count=2)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats__adoption__immunizations'))
             low_nested = cur.fetchone()[0]
@@ -563,7 +555,7 @@ def test_full_table_replication(db_prep):
     stream = CatStream(110, version=0, nested_count=3)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             version_0_count = cur.fetchone()[0]
@@ -577,7 +569,7 @@ def test_full_table_replication(db_prep):
     stream = CatStream(100, version=1, nested_count=3)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             version_1_count = cur.fetchone()[0]
@@ -591,7 +583,7 @@ def test_full_table_replication(db_prep):
     stream = CatStream(120, version=2, nested_count=2)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             version_2_count = cur.fetchone()[0]
@@ -606,7 +598,7 @@ def test_full_table_replication(db_prep):
     stream = CatStream(314, version=1, nested_count=2)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             older_version_count = cur.fetchone()[0]
@@ -618,7 +610,7 @@ def test_deduplication_newer_rows(db_prep):
     stream = CatStream(100, nested_count=3, duplicates=2)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             table_count = cur.fetchone()[0]
@@ -645,7 +637,7 @@ def test_deduplication_older_rows(db_prep):
     stream = CatStream(100, nested_count=2, duplicates=2, duplicate_sequence_delta=-100)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             table_count = cur.fetchone()[0]
@@ -678,7 +670,7 @@ def test_deduplication_existing_new_rows(db_prep):
                        sequence=original_sequence - 20)
     main(CONFIG, input_stream=stream)
 
-    with psycopg2.connect(**TEST_DB) as conn:
+    with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(get_count_sql('cats'))
             table_count = cur.fetchone()[0]

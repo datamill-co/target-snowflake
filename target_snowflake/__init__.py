@@ -1,8 +1,8 @@
 import singer
 from singer import utils
-from snowflake.connector import connect
 from target_postgres import target_tools
 
+from target_snowflake.connection import connect
 from target_snowflake.snowflake import SnowflakeTarget
 
 LOGGER = singer.get_logger()

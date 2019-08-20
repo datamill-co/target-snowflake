@@ -5,14 +5,16 @@ import random
 import arrow
 from chance import chance
 from faker import Faker
-import psycopg2
-from psycopg2 import sql
 import pytest
+
+from target_snowflake import sql
+from target_snowflake.connection import connect
 
 CONFIG = {
     'snowflake_account': os.environ['SNOWFLAKE_ACCOUNT'],
     'snowflake_database': os.environ['SNOWFLAKE_DATABASE'],
     'snowflake_warehouse': os.environ['SNOWFLAKE_WAREHOUSE'],
+    'snowflake_schema': os.environ['SNOWFLAKE_SCHEMA'],
     'snowflake_username': os.environ['SNOWFLAKE_USERNAME'],
     'snowflake_password': os.environ['SNOWFLAKE_PASSWORD'],
     'disable_collection': True,

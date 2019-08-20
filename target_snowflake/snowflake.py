@@ -1,6 +1,7 @@
 from copy import deepcopy
+import logging
 import re
-import snowflake.connector
+from target_snowflake.connection import connect
 
 from psycopg2 import sql
 from target_postgres import json_schema
@@ -32,11 +33,11 @@ class SnowflakeTarget(PostgresTarget):
             level = logging.getLevelName(logging_level)
             self.LOGGER.setLevel(level)
 
-        # try:
-        #     connection.initialize(self.LOGGER)
-        #     self.LOGGER.debug('SnowflakeTarget set to log all queries.')
-        # except AttributeError:
-        #     self.LOGGER.debug('SnowflakeTarget disabling logging all queries.')
+        try:
+            connection.initialize(self.LOGGER)
+            self.LOGGER.debug('SnowflakeTarget set to log all queries.')
+        except AttributeError:
+            self.LOGGER.debug('SnowflakeTarget disabling logging all queries.')
 
         self.conn = connection
         self.postgres_schema = schema
