@@ -1,8 +1,8 @@
 import singer
 from singer import utils
-import snowflake.connector
 from target_postgres import target_tools
 
+from target_snowflake.connection import connect
 from target_snowflake.snowflake import SnowflakeTarget
 
 LOGGER = singer.get_logger()
@@ -17,7 +17,7 @@ REQUIRED_CONFIG_KEYS = [
 
 
 def main(config, input_stream=None):
-    with snowflake.connector.connect(
+    with connect(
             user=config.get('snowflake_username'),
             password=config.get('snowflake_password'),
             account=config.get('snowflake_account'),
