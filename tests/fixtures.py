@@ -424,20 +424,50 @@ class MultiTypeStream(FakeStream):
         }
 
 
+
 def clear_schema():
-    pass
+    with connect(**TEST_DB) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'DROP SCHEMA IF EXISTS {}.{} CASCADE;'.format(
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema'])))
 
 
 def clear_tables():
-    pass
+    with connect(**TEST_DB) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT table_name FROM {}.information_schema.tables WHERE table_schema = %s'.format(
+                sql.identifier(CONFIG['snowflake_database'])),
+                params=[CONFIG['snowflake_schema']])
+
+            tables = cur.fetchall()
+
+            cur.execute('BEGIN;')
+            for table in tables:
+                cur.execute('DROP TABLE IF EXISTS {};'.format(sql.identifier(table[0])))
+
+            cur.execute('COMMIT;')
 
 
 def clear_db():
-    pass
+    if CONFIG['snowflake_schema'] == 'public':
+        clear_tables()
+    else:
+        clear_schema()
 
 
 def create_schema():
-    pass
+    if CONFIG['snowflake_schema'] == 'public':
+        return None
+
+    with connect(**TEST_DB) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'CREATE SCHEMA IF NOT EXISTS {}.{};'.format(
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema'])))
 
 
 @pytest.fixture
