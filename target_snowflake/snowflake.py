@@ -254,7 +254,7 @@ class SnowflakeTarget(SQLInterface):
                 sql.identifier(self.connection.schema),
                 sql.identifier(name),
                 # Snowflake does not allow for creation of tables with no columns
-                self.CREATE_TABLE_INITIAL_COLUMN,
+                sql.identifier(self.CREATE_TABLE_INITIAL_COLUMN),
                 self.CREATE_TABLE_INITIAL_COLUMN_TYPE
             ))
 
@@ -618,17 +618,16 @@ class SnowflakeTarget(SQLInterface):
         :return: JSONSchema
         """
         _format = None
-        sql_type = sql_type.lower()
-        if re.match(r'time.*', sql_type):
+        if 'TIMESTAMP_TZ':
             json_type = 'string'
             _format = 'date-time'
-        elif sql_type == 'number':
+        elif sql_type == 'NUMBER':
             json_type = 'integer'
-        elif sql_type == 'real':
+        elif sql_type == 'REAL':
             json_type = 'number'
-        elif sql_type == 'boolean':
+        elif sql_type == 'BOOLEAN':
             json_type = 'boolean'
-        elif sql_type == 'text':
+        elif sql_type == 'TEXT':
             json_type = 'string'
         else:
             raise SnowflakeError('Unsupported type `{}` in existing target table'.format(sql_type))
@@ -663,13 +662,13 @@ class SnowflakeTarget(SQLInterface):
         if 'format' in schema and \
                 schema['format'] == 'date-time' and \
                 _type == 'string':
-            sql_type = 'timestamp_tz'
+            sql_type = 'TIMESTAMP_TZ'
         elif _type == 'boolean':
-            sql_type = 'boolean'
+            sql_type = 'BOOLEAN'
         elif _type == 'integer':
-            sql_type = 'number'
+            sql_type = 'NUMBER'
         elif _type == 'number':
-            sql_type = 'real'
+            sql_type = 'REAL'
 
         if not_null:
             sql_type += ' NOT NULL'
