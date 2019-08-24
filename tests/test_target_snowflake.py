@@ -208,6 +208,16 @@ def test_loading__empty__enabled_config(db_prep):
 
             assert_count_equal(cur, 'cats', 0)
 
+def test_loading__empty__enabled_config__repeatability(db_prep):
+    config = CONFIG.copy()
+    config['persist_empty_tables'] = True
+
+    main(config, input_stream=CatStream(0))
+
+    main(config, input_stream=CatStream(0))
+
+    main(config, input_stream=CatStream(0))
+
 
 @pytest.mark.xfail
 def test_loading__simple(db_prep):
