@@ -17,6 +17,20 @@ from target_snowflake import sql
 from target_snowflake.connection import connect
 from target_snowflake.exceptions import SnowflakeError
 
+def _setup_s3_stage(connection, stage_name, s3):
+    connection.cursor().execute('''
+    CREATE STAGE IF NOT EXISTS {database}.{schema}.{stage_name}
+        url='s3://{bucket}'
+        credentials=(AWS_KEY_ID='{aws_access_key_id}' AWS_SECRET_KEY='{aws_secret_access_key}');
+    '''.format(
+        database=connection.database,
+        schema=connection.schema,
+        stage_name=stage_name,
+        bucket=s3.bucket,
+        **s3.credentials()
+    ))
+    connection.commit()
+
 class SnowflakeTarget(SQLInterface):
     """
     Specific Snowflake implementation of a Singer Target.
@@ -29,7 +43,7 @@ class SnowflakeTarget(SQLInterface):
     CREATE_TABLE_INITIAL_COLUMN = '_sdc_target_snowflake_create_table_placeholder'
     CREATE_TABLE_INITIAL_COLUMN_TYPE = 'BOOLEAN'
 
-    def __init__(self, connection, *args, logging_level=None, persist_empty_tables=False, **kwargs):
+    def __init__(self, connection, stage_name, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
         self.LOGGER.info('SnowflakeTarget created...')
 
         if logging_level:
@@ -43,6 +57,9 @@ class SnowflakeTarget(SQLInterface):
             self.LOGGER.debug('SnowflakeTarget disabling logging all queries.')
 
         self.connection = connection
+        self.stage_name = stage_name
+        self.s3 = s3
+        _setup_s3_stage(connection, stage_name, s3)
         self.persist_empty_tables = persist_empty_tables
         if self.persist_empty_tables:
             self.LOGGER.debug('SnowflakeTarget is persisting empty tables')
@@ -391,12 +408,16 @@ class SnowflakeTarget(SQLInterface):
     def serialize_table_record_datetime_value(self, remote_schema, streamed_schema, field, value):
         return arrow.get(value).format('YYYY-MM-DD HH:mm:ss.SSSSZZ')
 
-    # def persist_csv_rows(self,
-    #                      cur,
-    #                      remote_schema,
-    #                      temp_table_name,
-    #                      columns,
-    #                      csv_rows):
+    def persist_csv_rows(self,
+                         cur,
+                         remote_schema,
+                         temp_table_name,
+                         columns,
+                         csv_rows):
+        key_prefix = temp_table_name + SEPARATOR
+
+        bucket, key = self.s3.persist(csv_rows,
+                                      key_prefix=key_prefix)
 
     #     copy = sql.SQL('COPY {}.{} ({}) FROM STDIN WITH CSV NULL AS {}').format(
     #         sql.Identifier(self.postgres_schema),

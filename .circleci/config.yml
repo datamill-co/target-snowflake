@@ -94,13 +94,14 @@ jobs:
           command: |
             source venv--target-snowflake/bin/activate
             ## To avoid collision with other running tests
-            export TARGET_KEY_PREFIX="circleci_target_snowflake_test_`date +%s`__"
-            export SNOWFLAKE_SCHEMA="$TARGET_KEY_PREFIX"
+            export TARGET_S3_KEY_PREFIX="circleci_target_redshift_test_`date +%s`__"
+            export SNOWFLAKE_SCHEMA="$TARGET_S3_KEY_PREFIX"
 
             pytest --verbose
           environment:
             SNOWFLAKE_WAREHOUSE: SINGER_DEV
             SNOWFLAKE_DATABASE: TARGET_SNOWFLAKE_TEST
+            TARGET_S3_BUCKET: 'test-target-redshift'
 
       - store_artifacts:
           path: target/test-results
