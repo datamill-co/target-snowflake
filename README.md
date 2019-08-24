@@ -78,6 +78,14 @@ here.
 | `persist_empty_tables`      | `["boolean", "null"]` | `False`    | Whether the Target should create tables which have no records present in Remote.                                                                                                                                                                                                                                                          |
 | `state_support`             | `["boolean", "null"]` | `True`     | Whether the Target should emit `STATE` messages to stdout for further consumption. In this mode, which is on by default, STATE messages are buffered in memory until all the records that occurred before them are flushed according to the batch flushing schedule the target is configured with.                                        |
 
+## Limitations
+
+- [Snowflake SQL Identifiers](https://docs.snowflake.net/manuals/sql-reference/identifiers-syntax.html):
+  - Although Snowflake supports quoted identifiers to have non-alphanumeric values, `target-snowflake` limits
+    identifiers to lowercase alphanumerics, and underscores
+  - This is done to make querability/useability in Snowflake simpler, so as to not require users to _have_ to use
+    sometimes cumbersome quotes to query their data
+
 ## Sponsorship
 
 Target Snowflake is sponsored by Data Mill (Data Mill Services, LLC) [datamill.co](https://datamill.co/).
