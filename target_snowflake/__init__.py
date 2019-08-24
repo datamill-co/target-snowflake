@@ -22,11 +22,12 @@ def main(config, input_stream=None):
             password=config.get('snowflake_password'),
             account=config.get('snowflake_account'),
             warehouse=config.get('snowflake_warehouse'),
-            database=config.get('snowflake_database')
+            database=config.get('snowflake_database'),
+            autocommit=False
     ) as connection:
         target = SnowflakeTarget(
             connection,
-            schema=config.get('snowflake_schema', 'public'),
+            schema=config.get('snowflake_schema', 'PUBLIC'),
             logging_level=config.get('logging_level'),
             persist_empty_tables=config.get('persist_empty_tables')
         )

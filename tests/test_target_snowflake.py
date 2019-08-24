@@ -8,20 +8,39 @@ from fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, 
 from target_postgres import singer_stream
 from target_postgres.target_tools import TargetError
 
-from target_snowflake import main
+from target_snowflake import main, sql
 from target_snowflake.connection import connect
 
 
 def assert_columns_equal(cursor, table_name, expected_column_tuples):
-    ## TODO
+    cursor.execute('''
+        SELECT column_name, data_type, is_nullable
+        FROM {}.information_schema.columns
+        WHERE table_schema = '{}' AND table_name = '{}'
+    '''.format(
+        sql.identifier(cursor.connection.database),
+        cursor.connection.schema,
+        table_name))
+
     columns = []
+    for column in cursor.fetchall():
+        columns.append((column[0], column[1], column[2]))
 
     assert set(columns) == expected_column_tuples
 
 
-def get_count_sql(table_name):
-    return 0 ## TODO
+def get_count_sql(cursor, table_name):
+    return '''
+        SELECT COUNT(*) FROM {}.{}.{}
+    '''.format(
+        sql.identifier(cursor.connection.database),
+        sql.identifier(cursor.connection.schema),
+        sql.identifier(table_name))
 
+def assert_count_equal(cursor, table_name, expected_count):
+    cursor.execute(get_count_sql(cursor, table_name))
+
+    assert cursor.fetchone()[0] == 0
 
 def get_pk_key(pks, obj, subrecord=False):
     pk_parts = []
@@ -147,6 +166,59 @@ def test_connect(db_prep):
 def test_loading__empty(db_prep):
     stream = CatStream(0)
 
+
+def test_loading__empty__enabled_config(db_prep):
+    config = CONFIG.copy()
+    config['persist_empty_tables'] = True
+
+    stream = CatStream(0)
+    main(config, input_stream=stream)
+
+    with connect(**TEST_DB) as conn:
+        with conn.cursor() as cur:
+            assert_columns_equal(cur,
+                                 'cats',
+                                 {
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
+                                     ('adoption__was_foster', 'BOOLEAN', 'YES'),
+                                     ('age', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
+                                     ('name', 'TEXT', 'NO'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
+                                     ('pattern', 'TEXT', 'YES')
+                                 })
+
+            assert_columns_equal(cur,
+                                 'cats__adoption__immunizations',
+                                 {
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'NO'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('date_administered', 'TIMESTAMP_TZ', 'YES'),
+                                     ('type', 'TEXT', 'YES')
+                                 })
+
+            assert_count_equal(cur, 'cats', 0)
+
+def test_loading__empty__enabled_config__repeatability(db_prep):
+    config = CONFIG.copy()
+    config['persist_empty_tables'] = True
+
+    main(config, input_stream=CatStream(0))
+
+    main(config, input_stream=CatStream(0))
+
+    main(config, input_stream=CatStream(0))
+
+
 @pytest.mark.xfail
 def test_loading__simple(db_prep):
     stream = CatStream(100)
@@ -157,33 +229,34 @@ def test_loading__simple(db_prep):
             assert_columns_equal(cur,
                                  'cats',
                                  {
-                                     ('_sdc_batched_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_received_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_table_version', 'bigint', 'YES'),
-                                     ('adoption__adopted_on', 'timestamp with time zone', 'YES'),
-                                     ('adoption__was_foster', 'boolean', 'YES'),
-                                     ('age', 'bigint', 'YES'),
-                                     ('id', 'bigint', 'YES'),
-                                     ('name', 'character varying', 'YES'),
-                                     ('paw_size', 'bigint', 'YES'),
-                                     ('paw_colour', 'character varying', 'YES'),
-                                     ('flea_check_complete', 'boolean', 'YES'),
-                                     ('pattern', 'character varying', 'YES')
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
+                                     ('adoption__was_foster', 'BOOLEAN', 'YES'),
+                                     ('age', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'YES'),
+                                     ('name', 'TEXT', 'YES'),
+                                     ('paw_size', 'NUMBER', 'YES'),
+                                     ('paw_colour', 'TEXT', 'YES'),
+                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('pattern', 'TEXT', 'YES')
                                  })
 
             assert_columns_equal(cur,
                                  'cats__adoption__immunizations',
                                  {
-                                     ('_sdc_level_0_id', 'bigint', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_source_key_id', 'bigint', 'YES'),
-                                     ('date_administered', 'timestamp with time zone', 'YES'),
-                                     ('type', 'character varying', 'YES')
+                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('date_administered', 'TIMESTAMP_TZ', 'YES'),
+                                     ('type', 'TEXT', 'YES')
                                  })
 
-            cur.execute(get_count_sql('cats'))
-            assert cur.fetchone()[0] == 100
+            assert_count_equal(cur, 'cats', 100)
 
         for record in stream.records:
             record['paw_size'] = 314159
@@ -198,75 +271,76 @@ def test_loading__nested_tables(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('root'))
-            assert 10 == cur.fetchone()[0]
+            assert_count_equal(cur, 'root', 10)
 
-            cur.execute(get_count_sql('root__array_scalar'))
-            assert 50 == cur.fetchone()[0]
+            assert_count_equal(cur, 'root__array_scalar', 50)
 
-            cur.execute(
-                get_count_sql('root__object_of_object_0__object_of_object_1__object_of_object_2__array_scalar'))
-            assert 50 == cur.fetchone()[0]
+            assert_count_equal(
+                cur,
+                'root__object_of_object_0__object_of_object_1__object_of_object_2__array_scalar',
+                50)
 
-            cur.execute(get_count_sql('root__array_of_array'))
-            assert 20 == cur.fetchone()[0]
+            assert_count_equal(cur, 'root__array_of_array', 20)
 
-            cur.execute(get_count_sql('root__array_of_array___sdc_value'))
-            assert 80 == cur.fetchone()[0]
+            assert_count_equal(cur, 'root__array_of_array___sdc_value', 80)
 
-            cur.execute(get_count_sql('root__array_of_array___sdc_value___sdc_value'))
-            assert 200 == cur.fetchone()[0]
+            assert_count_equal(cur, 'root__array_of_array___sdc_value___sdc_value', 200)
 
             assert_columns_equal(cur,
                                  'root',
                                  {
-                                     ('_sdc_batched_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_received_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_table_version', 'bigint', 'YES'),
-                                     ('id', 'bigint', 'YES'),
-                                     ('null', 'bigint', 'YES'),
-                                     ('nested_null__null', 'bigint', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__a', 'bigint', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__b', 'bigint', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__c', 'bigint', 'YES')
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('id', 'NUMBER', 'YES'),
+                                     ('null', 'NUMBER', 'YES'),
+                                     ('nested_null__null', 'NUMBER', 'YES'),
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__a', 'NUMBER', 'YES'),
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__b', 'NUMBER', 'YES'),
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__c', 'NUMBER', 'YES')
                                  })
 
             assert_columns_equal(cur,
                                  'root__object_of_object_0__object_of_object_1__object_of_object_2__array_scalar',
                                  {
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_source_key_id', 'bigint', 'YES'),
-                                     ('_sdc_level_0_id', 'bigint', 'YES'),
-                                     ('_sdc_value', 'boolean', 'YES')
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_value', 'BOOLEAN', 'YES')
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
             assert_columns_equal(cur,
                                  'root__array_of_array',
                                  {
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_source_key_id', 'bigint', 'YES'),
-                                     ('_sdc_level_0_id', 'bigint', 'YES')
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'YES')
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
             assert_columns_equal(cur,
                                  'root__array_of_array___sdc_value',
                                  {
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_source_key_id', 'bigint', 'YES'),
-                                     ('_sdc_level_0_id', 'bigint', 'YES'),
-                                     ('_sdc_level_1_id', 'bigint', 'YES')
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_1_id', 'NUMBER', 'YES')
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
             assert_columns_equal(cur,
                                  'root__array_of_array___sdc_value___sdc_value',
                                  {
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_source_key_id', 'bigint', 'YES'),
-                                     ('_sdc_level_0_id', 'bigint', 'YES'),
-                                     ('_sdc_level_1_id', 'bigint', 'YES'),
-                                     ('_sdc_level_2_id', 'bigint', 'YES'),
-                                     ('_sdc_value', 'bigint', 'YES')
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_1_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_2_id', 'NUMBER', 'YES'),
+                                     ('_sdc_value', 'NUMBER', 'YES')
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
 @pytest.mark.xfail
@@ -292,20 +366,21 @@ def test_loading__new_non_null_column(db_prep):
             assert_columns_equal(cur,
                                  'cats',
                                  {
-                                     ('_sdc_batched_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_received_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_table_version', 'bigint', 'YES'),
-                                     ('adoption__adopted_on', 'timestamp with time zone', 'YES'),
-                                     ('adoption__was_foster', 'boolean', 'YES'),
-                                     ('age', 'bigint', 'YES'),
-                                     ('id', 'bigint', 'YES'),
-                                     ('name', 'character varying', 'YES'),
-                                     ('paw_size', 'bigint', 'YES'),
-                                     ('paw_colour', 'character varying', 'YES'),
-                                     ('paw_toe_count', 'bigint', 'YES'),
-                                     ('flea_check_complete', 'boolean', 'YES'),
-                                     ('pattern', 'character varying', 'YES')
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
+                                     ('adoption__was_foster', 'BOOLEAN', 'YES'),
+                                     ('age', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'YES'),
+                                     ('name', 'TEXT', 'YES'),
+                                     ('paw_size', 'NUMBER', 'YES'),
+                                     ('paw_colour', 'TEXT', 'YES'),
+                                     ('paw_toe_count', 'NUMBER', 'YES'),
+                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('pattern', 'TEXT', 'YES')
                                  })
 
             cur.execute(sql.SQL('SELECT {}, {} FROM {}').format(
@@ -331,19 +406,20 @@ def test_loading__column_type_change(db_prep):
             assert_columns_equal(cur,
                                  'cats',
                                  {
-                                     ('_sdc_batched_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_received_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_table_version', 'bigint', 'YES'),
-                                     ('adoption__adopted_on', 'timestamp with time zone', 'YES'),
-                                     ('adoption__was_foster', 'boolean', 'YES'),
-                                     ('age', 'bigint', 'YES'),
-                                     ('id', 'bigint', 'YES'),
-                                     ('name', 'character varying', 'YES'),
-                                     ('paw_size', 'bigint', 'YES'),
-                                     ('paw_colour', 'character varying', 'YES'),
-                                     ('flea_check_complete', 'boolean', 'YES'),
-                                     ('pattern', 'character varying', 'YES')
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
+                                     ('adoption__was_foster', 'BOOLEAN', 'YES'),
+                                     ('age', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'YES'),
+                                     ('name', 'TEXT', 'YES'),
+                                     ('paw_size', 'NUMBER', 'YES'),
+                                     ('paw_colour', 'TEXT', 'YES'),
+                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('pattern', 'TEXT', 'YES')
                                  })
 
             cur.execute(sql.SQL('SELECT {} FROM {}').format(
@@ -374,20 +450,21 @@ def test_loading__column_type_change(db_prep):
             assert_columns_equal(cur,
                                  'cats',
                                  {
-                                     ('_sdc_batched_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_received_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_table_version', 'bigint', 'YES'),
-                                     ('adoption__adopted_on', 'timestamp with time zone', 'YES'),
-                                     ('adoption__was_foster', 'boolean', 'YES'),
-                                     ('age', 'bigint', 'YES'),
-                                     ('id', 'bigint', 'YES'),
-                                     ('name__s', 'character varying', 'YES'),
-                                     ('name__b', 'boolean', 'YES'),
-                                     ('paw_size', 'bigint', 'YES'),
-                                     ('paw_colour', 'character varying', 'YES'),
-                                     ('flea_check_complete', 'boolean', 'YES'),
-                                     ('pattern', 'character varying', 'YES')
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
+                                     ('adoption__was_foster', 'BOOLEAN', 'YES'),
+                                     ('age', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'YES'),
+                                     ('name__s', 'TEXT', 'YES'),
+                                     ('name__b', 'BOOLEAN', 'YES'),
+                                     ('paw_size', 'NUMBER', 'YES'),
+                                     ('paw_colour', 'TEXT', 'YES'),
+                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('pattern', 'TEXT', 'YES')
                                  })
 
             cur.execute(sql.SQL('SELECT {}, {} FROM {}').format(
@@ -421,21 +498,22 @@ def test_loading__column_type_change(db_prep):
             assert_columns_equal(cur,
                                  'cats',
                                  {
-                                     ('_sdc_batched_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_received_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_table_version', 'bigint', 'YES'),
-                                     ('adoption__adopted_on', 'timestamp with time zone', 'YES'),
-                                     ('adoption__was_foster', 'boolean', 'YES'),
-                                     ('age', 'bigint', 'YES'),
-                                     ('id', 'bigint', 'YES'),
-                                     ('name__s', 'character varying', 'YES'),
-                                     ('name__b', 'boolean', 'YES'),
-                                     ('name__i', 'bigint', 'YES'),
-                                     ('paw_size', 'bigint', 'YES'),
-                                     ('paw_colour', 'character varying', 'YES'),
-                                     ('flea_check_complete', 'boolean', 'YES'),
-                                     ('pattern', 'character varying', 'YES')
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
+                                     ('adoption__was_foster', 'BOOLEAN', 'YES'),
+                                     ('age', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'YES'),
+                                     ('name__s', 'TEXT', 'YES'),
+                                     ('name__b', 'BOOLEAN', 'YES'),
+                                     ('name__i', 'NUMBER', 'YES'),
+                                     ('paw_size', 'NUMBER', 'YES'),
+                                     ('paw_colour', 'TEXT', 'YES'),
+                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('pattern', 'TEXT', 'YES')
                                  })
 
             cur.execute(sql.SQL('SELECT {}, {}, {} FROM {}').format(
@@ -465,28 +543,30 @@ def test_loading__multi_types_columns(db_prep):
             assert_columns_equal(cur,
                                  'root',
                                  {
-                                     ('_sdc_primary_key', 'character varying', 'YES'),
-                                     ('_sdc_batched_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_received_at', 'timestamp with time zone', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_table_version', 'bigint', 'YES'),
-                                     ('every_type__i', 'bigint', 'YES'),
+                                     ('_sdc_primary_key', 'TEXT', 'YES'),
+                                     ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_table_version', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
+                                     ('every_type__i', 'NUMBER', 'YES'),
                                      ('every_type__f', 'double precision', 'YES'),
-                                     ('every_type__b', 'boolean', 'YES'),
-                                     ('every_type__t', 'timestamp with time zone', 'YES'),
-                                     ('every_type__i__1', 'bigint', 'YES'),
+                                     ('every_type__b', 'BOOLEAN', 'YES'),
+                                     ('every_type__t', 'TIMESTAMP_TZ', 'YES'),
+                                     ('every_type__i__1', 'NUMBER', 'YES'),
                                      ('every_type__f__1', 'double precision', 'YES'),
-                                     ('every_type__b__1', 'boolean', 'YES'),
+                                     ('every_type__b__1', 'BOOLEAN', 'YES'),
                                      ('number_which_only_comes_as_integer', 'double precision', 'YES')
                                  })
 
             assert_columns_equal(cur,
                                  'root__every_type',
                                  {
-                                     ('_sdc_source_key__sdc_primary_key', 'character varying', 'YES'),
-                                     ('_sdc_level_0_id', 'bigint', 'YES'),
-                                     ('_sdc_sequence', 'bigint', 'YES'),
-                                     ('_sdc_value', 'bigint', 'YES'),
+                                     ('_sdc_source_key__sdc_primary_key', 'TEXT', 'YES'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_sequence', 'NUMBER', 'YES'),
+                                     ('_sdc_value', 'NUMBER', 'YES'),
+                                     ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
             cur.execute(sql.SQL('SELECT {} FROM {}').format(
@@ -506,8 +586,7 @@ def test_upsert(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
-            assert cur.fetchone()[0] == 100
+            assert_count_equal(cur, 'cats', 100)
         assert_records(conn, stream.records, 'cats', 'id')
 
     stream = CatStream(100)
@@ -515,8 +594,7 @@ def test_upsert(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
-            assert cur.fetchone()[0] == 100
+            assert_count_equal(cur, 'cats', 100)
         assert_records(conn, stream.records, 'cats', 'id')
 
     stream = CatStream(200)
@@ -524,8 +602,7 @@ def test_upsert(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
-            assert cur.fetchone()[0] == 200
+            assert_count_equal(cur, 'cats', 200)
         assert_records(conn, stream.records, 'cats', 'id')
 
 @pytest.mark.xfail
@@ -535,7 +612,7 @@ def test_nested_delete_on_parent(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             high_nested = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id')
 
@@ -544,7 +621,7 @@ def test_nested_delete_on_parent(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             low_nested = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id')
 
@@ -557,9 +634,9 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
+            cur.execute(get_count_sql(cur, 'cats'))
             version_0_count = cur.fetchone()[0]
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             version_0_sub_count = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id', match_pks=True)
 
@@ -571,9 +648,9 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
+            cur.execute(get_count_sql(cur, 'cats'))
             version_1_count = cur.fetchone()[0]
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             version_1_sub_count = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id', match_pks=True)
 
@@ -585,9 +662,9 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
+            cur.execute(get_count_sql(cur, 'cats'))
             version_2_count = cur.fetchone()[0]
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             version_2_sub_count = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id', match_pks=True)
 
@@ -600,7 +677,7 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
+            cur.execute(get_count_sql(cur, 'cats'))
             older_version_count = cur.fetchone()[0]
 
     assert older_version_count == version_2_count
@@ -612,9 +689,9 @@ def test_deduplication_newer_rows(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
+            cur.execute(get_count_sql(cur, 'cats'))
             table_count = cur.fetchone()[0]
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
 
             cur.execute(sql.SQL(
@@ -639,9 +716,9 @@ def test_deduplication_older_rows(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
+            cur.execute(get_count_sql(cur, 'cats'))
             table_count = cur.fetchone()[0]
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
 
             cur.execute(sql.SQL(
@@ -672,9 +749,9 @@ def test_deduplication_existing_new_rows(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql('cats'))
+            cur.execute(get_count_sql(cur, 'cats'))
             table_count = cur.fetchone()[0]
-            cur.execute(get_count_sql('cats__adoption__immunizations'))
+            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
 
             cur.execute(sql.SQL(

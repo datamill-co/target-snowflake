@@ -438,7 +438,7 @@ def clear_tables():
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                'SELECT table_name FROM {}.information_schema.tables WHERE table_schema = %s'.format(
+                'SELECT table_name FROM {}.information_schema.tables WHERE table_schema ILIKE %s'.format(
                 sql.identifier(CONFIG['snowflake_database'])),
                 params=[CONFIG['snowflake_schema']])
 
@@ -446,20 +446,23 @@ def clear_tables():
 
             cur.execute('BEGIN;')
             for table in tables:
-                cur.execute('DROP TABLE IF EXISTS {};'.format(sql.identifier(table[0])))
+                cur.execute('DROP TABLE IF EXISTS {}.{}.{};'.format(
+                    sql.identifier(conn.database),
+                    sql.identifier(conn.schema),
+                    sql.identifier(table[0])))
 
             cur.execute('COMMIT;')
 
 
 def clear_db():
-    if CONFIG['snowflake_schema'] == 'public':
+    if CONFIG['snowflake_schema'].lower() == 'public':
         clear_tables()
     else:
         clear_schema()
 
 
 def create_schema():
-    if CONFIG['snowflake_schema'] == 'public':
+    if CONFIG['snowflake_schema'].lower() == 'public':
         return None
 
     with connect(**TEST_DB) as conn:
