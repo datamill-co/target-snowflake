@@ -219,7 +219,6 @@ def test_loading__empty__enabled_config__repeatability(db_prep):
     main(config, input_stream=CatStream(0))
 
 
-@pytest.mark.xfail
 def test_loading__simple(db_prep):
     stream = CatStream(100)
     main(CONFIG, input_stream=stream)
@@ -237,20 +236,20 @@ def test_loading__simple(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
-                                     ('name', 'TEXT', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
+                                     ('name', 'TEXT', 'NO'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
             assert_columns_equal(cur,
                                  'cats__adoption__immunizations',
                                  {
-                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
-                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                      ('date_administered', 'TIMESTAMP_TZ', 'YES'),
                                      ('type', 'TEXT', 'YES')
@@ -306,8 +305,8 @@ def test_loading__nested_tables(db_prep):
                                  'root__object_of_object_0__object_of_object_1__object_of_object_2__array_scalar',
                                  {
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
-                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
-                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'NO'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_value', 'BOOLEAN', 'YES')
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
@@ -316,8 +315,8 @@ def test_loading__nested_tables(db_prep):
                                  'root__array_of_array',
                                  {
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
-                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
-                                     ('_sdc_level_0_id', 'NUMBER', 'YES')
+                                     ('_sdc_source_key_id', 'NUMBER', 'NO'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO')
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -325,9 +324,9 @@ def test_loading__nested_tables(db_prep):
                                  'root__array_of_array___sdc_value',
                                  {
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
-                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
-                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
-                                     ('_sdc_level_1_id', 'NUMBER', 'YES')
+                                     ('_sdc_source_key_id', 'NUMBER', 'NO'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
+                                     ('_sdc_level_1_id', 'NUMBER', 'NO')
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -335,10 +334,10 @@ def test_loading__nested_tables(db_prep):
                                  'root__array_of_array___sdc_value___sdc_value',
                                  {
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
-                                     ('_sdc_source_key_id', 'NUMBER', 'YES'),
-                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
-                                     ('_sdc_level_1_id', 'NUMBER', 'YES'),
-                                     ('_sdc_level_2_id', 'NUMBER', 'YES'),
+                                     ('_sdc_source_key_id', 'NUMBER', 'NO'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
+                                     ('_sdc_level_1_id', 'NUMBER', 'NO'),
+                                     ('_sdc_level_2_id', 'NUMBER', 'NO'),
                                      ('_sdc_value', 'NUMBER', 'YES')
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
@@ -563,7 +562,7 @@ def test_loading__multi_types_columns(db_prep):
                                  'root__every_type',
                                  {
                                      ('_sdc_source_key__sdc_primary_key', 'TEXT', 'YES'),
-                                     ('_sdc_level_0_id', 'NUMBER', 'YES'),
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_value', 'NUMBER', 'YES'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
