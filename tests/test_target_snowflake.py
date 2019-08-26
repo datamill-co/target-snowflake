@@ -346,7 +346,7 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
-@pytest.mark.xfail
+
 def test_loading__new_non_null_column(db_prep):
     cat_count = 50
     main(CONFIG, input_stream=CatStream(cat_count))
@@ -377,12 +377,12 @@ def test_loading__new_non_null_column(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
-                                     ('name', 'TEXT', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
+                                     ('name', 'TEXT', 'NO'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
                                      ('paw_toe_count', 'NUMBER', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
@@ -421,11 +421,11 @@ def test_loading__column_type_change(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
-                                     ('name', 'TEXT', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
+                                     ('name', 'TEXT', 'NO'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
@@ -469,12 +469,12 @@ def test_loading__column_type_change(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
                                      ('name__s', 'TEXT', 'YES'),
                                      ('name__b', 'BOOLEAN', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
@@ -521,13 +521,13 @@ def test_loading__column_type_change(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
                                      ('name__s', 'TEXT', 'YES'),
                                      ('name__b', 'BOOLEAN', 'YES'),
                                      ('name__i', 'NUMBER', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
