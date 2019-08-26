@@ -563,7 +563,7 @@ class SnowflakeTarget(SQLInterface):
             _format = 'date-time'
         elif sql_type == 'NUMBER':
             json_type = 'integer'
-        elif sql_type == 'REAL':
+        elif sql_type == 'FLOAT':
             json_type = 'number'
         elif sql_type == 'BOOLEAN':
             json_type = 'boolean'
@@ -608,7 +608,7 @@ class SnowflakeTarget(SQLInterface):
         elif _type == 'integer':
             sql_type = 'NUMBER'
         elif _type == 'number':
-            sql_type = 'REAL'
+            sql_type = 'FLOAT'
 
         if not_null:
             sql_type += ' NOT NULL'
