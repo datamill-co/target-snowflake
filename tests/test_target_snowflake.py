@@ -268,7 +268,7 @@ def test_loading__simple(db_prep):
 
         assert_records(conn, stream.records, 'cats', 'id')
 
-@pytest.mark.xfail
+
 def test_loading__nested_tables(db_prep):
     main(CONFIG, input_stream=NestedStream(10))
 
@@ -297,12 +297,12 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_table_version', 'NUMBER', 'YES'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
                                      ('null', 'NUMBER', 'YES'),
                                      ('nested_null__null', 'NUMBER', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__a', 'NUMBER', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__b', 'NUMBER', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__c', 'NUMBER', 'YES')
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__a', 'NUMBER', 'NO'),
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__b', 'NUMBER', 'NO'),
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__c', 'NUMBER', 'NO')
                                  })
 
             assert_columns_equal(cur,
@@ -311,7 +311,7 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_source_key_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
-                                     ('_sdc_value', 'BOOLEAN', 'YES')
+                                     ('_sdc_value', 'BOOLEAN', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -320,7 +320,7 @@ def test_loading__nested_tables(db_prep):
                                  {
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_source_key_id', 'NUMBER', 'NO'),
-                                     ('_sdc_level_0_id', 'NUMBER', 'NO')
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -330,7 +330,7 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_source_key_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
-                                     ('_sdc_level_1_id', 'NUMBER', 'NO')
+                                     ('_sdc_level_1_id', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -342,7 +342,7 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_1_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_2_id', 'NUMBER', 'NO'),
-                                     ('_sdc_value', 'NUMBER', 'YES')
+                                     ('_sdc_value', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
