@@ -639,7 +639,7 @@ class SnowflakeTarget(SQLInterface):
         :return: JSONSchema
         """
         _format = None
-        if 'TIMESTAMP_TZ':
+        if sql_type == 'TIMESTAMP_TZ':
             json_type = 'string'
             _format = 'date-time'
         elif sql_type == 'NUMBER':
