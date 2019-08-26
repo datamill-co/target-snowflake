@@ -403,7 +403,7 @@ def test_loading__new_non_null_column(db_prep):
             assert cat_count == len([x for x in persisted_records if x[1] is None])
             assert cat_count == len([x for x in persisted_records if x[1] is not None])
 
-@pytest.mark.xfail
+
 def test_loading__column_type_change(db_prep):
     cat_count = 20
     main(CONFIG, input_stream=CatStream(cat_count))
