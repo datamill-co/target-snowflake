@@ -106,10 +106,12 @@ def assert_records(conn, records, table_name, pks, match_pks=False):
     with conn.cursor(True) as cur:
         cur.execute("set timezone='UTC';")
 
-        cur.execute(sql.SQL(
-            'SELECT * FROM {}'
-        ).format(
-            sql.Identifier(table_name)))
+        cur.execute('''
+            SELECT * FROM {}.{}.{}
+        '''.format(
+            sql.identifier(conn.database),
+            sql.identifier(conn.schema),
+            sql.identifier(table_name)))
         persisted_records_raw = cur.fetchall()
 
         persisted_records = {}
@@ -133,10 +135,12 @@ def assert_records(conn, records, table_name, pks, match_pks=False):
 
         sub_pks = list(map(lambda pk: singer_stream.SINGER_SOURCE_PK_PREFIX + pk, pks))
         for subtable_name, items in subtables.items():
-            cur.execute(sql.SQL(
-                'SELECT * FROM {}'
-            ).format(
-                sql.Identifier(table_name + '__' + subtable_name)))
+            cur.execute('''
+                SELECT * FROM {}.{}.{}
+            '''.format(
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier(table_name + '__' + subtable_name)))
             persisted_records_raw = cur.fetchall()
 
             persisted_records = {}
@@ -382,10 +386,14 @@ def test_loading__new_non_null_column(db_prep):
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
-            cur.execute(sql.SQL('SELECT {}, {} FROM {}').format(
-                sql.Identifier('id'),
-                sql.Identifier('paw_toe_count'),
-                sql.Identifier('cats')
+            cur.execute('''
+                SELECT {}, {} FROM {}.{}.{}
+            '''.format(
+                sql.identifier('id'),
+                sql.identifier('paw_toe_count'),
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('cats')
             ))
 
             persisted_records = cur.fetchall()
@@ -421,9 +429,13 @@ def test_loading__column_type_change(db_prep):
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
-            cur.execute(sql.SQL('SELECT {} FROM {}').format(
-                sql.Identifier('name'),
-                sql.Identifier('cats')
+            cur.execute('''
+                SELECT {} FROM {}.{}.{}
+            '''.format(
+                sql.identifier('name'),
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('cats')
             ))
             persisted_records = cur.fetchall()
 
@@ -466,10 +478,14 @@ def test_loading__column_type_change(db_prep):
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
-            cur.execute(sql.SQL('SELECT {}, {} FROM {}').format(
-                sql.Identifier('name__s'),
-                sql.Identifier('name__b'),
-                sql.Identifier('cats')
+            cur.execute('''
+                SELECT {}, {} FROM {}.{}.{}
+            '''.format(
+                sql.identifier('name__s'),
+                sql.identifier('name__b'),
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('cats')
             ))
             persisted_records = cur.fetchall()
 
@@ -515,11 +531,15 @@ def test_loading__column_type_change(db_prep):
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
-            cur.execute(sql.SQL('SELECT {}, {}, {} FROM {}').format(
-                sql.Identifier('name__s'),
-                sql.Identifier('name__b'),
-                sql.Identifier('name__i'),
-                sql.Identifier('cats')
+            cur.execute('''
+                SELECT {}, {}, {} FROM {}.{}.{}
+            '''.format(
+                sql.identifier('name__s'),
+                sql.identifier('name__b'),
+                sql.identifier('name__i'),
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('cats')
             ))
             persisted_records = cur.fetchall()
 
@@ -568,9 +588,13 @@ def test_loading__multi_types_columns(db_prep):
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
-            cur.execute(sql.SQL('SELECT {} FROM {}').format(
-                sql.Identifier('number_which_only_comes_as_integer'),
-                sql.Identifier('root')
+            cur.execute('''
+                SELECT {} FROM {}.{}.{}
+            '''.format(
+                sql.identifier('number_which_only_comes_as_integer'),
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('root')
             ))
             persisted_records = cur.fetchall()
 
@@ -693,12 +717,16 @@ def test_deduplication_newer_rows(db_prep):
             cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
 
-            cur.execute(sql.SQL(
-                'SELECT _sdc_sequence FROM {} WHERE id in '
-                + '({})'.format(','.join(map(str, stream.duplicate_pks_used)))
-            ).format(
-                sql.Identifier('cats'),
-                sql.Literal(','.join(map(str, stream.duplicate_pks_used)))))
+            cur.execute('''
+                SELECT "_sdc_sequence"
+                FROM {}.{}.{}
+                WHERE "id" in ({})
+            '''.format(
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('cats'),
+                ','.join(["'{}'".format(x) for x in stream.duplicate_pks_used])
+            ))
             dup_cat_records = cur.fetchall()
 
     assert stream.record_message_count == 102
@@ -719,12 +747,17 @@ def test_deduplication_older_rows(db_prep):
             table_count = cur.fetchone()[0]
             cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
-
-            cur.execute(sql.SQL(
-                'SELECT _sdc_sequence FROM {} WHERE id in '
-                + '({})'.format(','.join(map(str, stream.duplicate_pks_used)))
-            ).format(
-                sql.Identifier('cats')))
+            
+            cur.execute('''
+                SELECT "_sdc_sequence"
+                FROM {}.{}.{}
+                WHERE "id" in ({})
+            '''.format(
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('cats'),
+                ','.join(["'{}'".format(x) for x in stream.duplicate_pks_used])
+            ))
             dup_cat_records = cur.fetchall()
 
     assert stream.record_message_count == 102
@@ -753,10 +786,15 @@ def test_deduplication_existing_new_rows(db_prep):
             cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
 
-            cur.execute(sql.SQL(
-                'SELECT DISTINCT _sdc_sequence FROM {}'
-            ).format(
-                sql.Identifier('cats')))
+            cur.execute('''
+                SELECT DISTINCT "_sdc_sequence"
+                FROM {}.{}.{}
+                WHERE "id" in ({})
+            '''.format(
+                sql.identifier(conn.database),
+                sql.identifier(conn.schema),
+                sql.identifier('cats')
+            ))
             sequences = cur.fetchall()
 
     assert table_count == 100
