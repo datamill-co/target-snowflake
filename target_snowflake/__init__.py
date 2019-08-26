@@ -36,7 +36,6 @@ def main(config, input_stream=None):
 
         target = SnowflakeTarget(
             connection,
-            config.get('snowflake_stage', '_SDC_TARGET_SNOWFLAKE_STAGE'),
             s3,
             schema=config.get('snowflake_schema', 'PUBLIC'),
             logging_level=config.get('logging_level'),

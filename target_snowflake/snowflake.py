@@ -17,20 +17,6 @@ from target_snowflake import sql
 from target_snowflake.connection import connect
 from target_snowflake.exceptions import SnowflakeError
 
-def _setup_s3_stage(connection, stage_name, s3):
-    connection.cursor().execute('''
-    CREATE STAGE IF NOT EXISTS {database}.{schema}.{stage_name}
-        url='s3://{bucket}'
-        credentials=(AWS_KEY_ID='{aws_access_key_id}' AWS_SECRET_KEY='{aws_secret_access_key}');
-    '''.format(
-        database=connection.database,
-        schema=connection.schema,
-        stage_name=stage_name,
-        bucket=s3.bucket,
-        **s3.credentials()
-    ))
-    connection.commit()
-
 class SnowflakeTarget(SQLInterface):
     """
     Specific Snowflake implementation of a Singer Target.
@@ -43,7 +29,7 @@ class SnowflakeTarget(SQLInterface):
     CREATE_TABLE_INITIAL_COLUMN = '_sdc_target_snowflake_create_table_placeholder'
     CREATE_TABLE_INITIAL_COLUMN_TYPE = 'BOOLEAN'
 
-    def __init__(self, connection, stage_name, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
+    def __init__(self, connection, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
         self.LOGGER.info('SnowflakeTarget created...')
 
         if logging_level:
@@ -57,9 +43,7 @@ class SnowflakeTarget(SQLInterface):
             self.LOGGER.debug('SnowflakeTarget disabling logging all queries.')
 
         self.connection = connection
-        self.stage_name = stage_name
         self.s3 = s3
-        _setup_s3_stage(connection, stage_name, s3)
         self.persist_empty_tables = persist_empty_tables
         if self.persist_empty_tables:
             self.LOGGER.debug('SnowflakeTarget is persisting empty tables')
