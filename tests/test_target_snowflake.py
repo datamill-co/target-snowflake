@@ -602,7 +602,7 @@ def test_loading__multi_types_columns(db_prep):
             assert stream_count == len(persisted_records)
             assert stream_count == len([x for x in persisted_records if isinstance(x[0], float)])
 
-@pytest.mark.xfail
+
 def test_upsert(db_prep):
     stream = CatStream(100)
     main(CONFIG, input_stream=stream)
