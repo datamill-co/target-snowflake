@@ -1,4 +1,6 @@
 from copy import deepcopy
+import csv
+import io
 import json
 import logging
 import re
@@ -7,7 +9,7 @@ import uuid
 import arrow
 from psycopg2 import sql
 from target_postgres import json_schema
-from target_postgres.postgres import PostgresError, PostgresTarget, RESERVED_NULL_DEFAULT
+from target_postgres.postgres import TransformStream
 from target_postgres.singer_stream import (
     SINGER_LEVEL
 )
@@ -29,7 +31,7 @@ class SnowflakeTarget(SQLInterface):
     CREATE_TABLE_INITIAL_COLUMN = '_sdc_target_snowflake_create_table_placeholder'
     CREATE_TABLE_INITIAL_COLUMN_TYPE = 'BOOLEAN'
 
-    def __init__(self, connection, *args, logging_level=None, persist_empty_tables=False, **kwargs):
+    def __init__(self, connection, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
         self.LOGGER.info('SnowflakeTarget created...')
 
         if logging_level:
@@ -43,6 +45,7 @@ class SnowflakeTarget(SQLInterface):
             self.LOGGER.debug('SnowflakeTarget disabling logging all queries.')
 
         self.connection = connection
+        self.s3 = s3
         self.persist_empty_tables = persist_empty_tables
         if self.persist_empty_tables:
             self.LOGGER.debug('SnowflakeTarget is persisting empty tables')
@@ -277,146 +280,83 @@ class SnowflakeTarget(SQLInterface):
 
         return mapping['to']
 
-    # def _get_update_sql(self, target_table_name, temp_table_name, key_properties, columns, subkeys):
-    #     full_table_name = sql.SQL('{}.{}').format(
-    #         sql.Identifier(self.postgres_schema),
-    #         sql.Identifier(target_table_name))
-    #     full_temp_table_name = sql.SQL('{}.{}').format(
-    #         sql.Identifier(self.postgres_schema),
-    #         sql.Identifier(temp_table_name))
-
-    #     pk_temp_select_list = []
-    #     pk_where_list = []
-    #     pk_null_list = []
-    #     cxt_where_list = []
-    #     for pk in key_properties:
-    #         pk_identifier = sql.Identifier(pk)
-    #         pk_temp_select_list.append(sql.SQL('{}.{}').format(full_temp_table_name,
-    #                                                            pk_identifier))
-
-    #         pk_where_list.append(
-    #             sql.SQL('{table}.{pk} = "dedupped".{pk}').format(
-    #                 table=full_table_name,
-    #                 temp_table=full_temp_table_name,
-    #                 pk=pk_identifier))
-
-    #         pk_null_list.append(
-    #             sql.SQL('{table}.{pk} IS NULL').format(
-    #                 table=full_table_name,
-    #                 pk=pk_identifier))
-
-    #         cxt_where_list.append(
-    #             sql.SQL('{table}.{pk} = "pks".{pk}').format(
-    #                 table=full_table_name,
-    #                 pk=pk_identifier))
-    #     pk_temp_select = sql.SQL(', ').join(pk_temp_select_list)
-    #     pk_where = sql.SQL(' AND ').join(pk_where_list)
-    #     pk_null = sql.SQL(' AND ').join(pk_null_list)
-    #     cxt_where = sql.SQL(' AND ').join(cxt_where_list)
-
-    #     sequence_join = sql.SQL(' AND "dedupped".{} >= {}.{}').format(
-    #         sql.Identifier(SINGER_SEQUENCE),
-    #         full_table_name,
-    #         sql.Identifier(SINGER_SEQUENCE))
-
-    #     distinct_order_by = sql.SQL(' ORDER BY {}, {}.{} DESC').format(
-    #         pk_temp_select,
-    #         full_temp_table_name,
-    #         sql.Identifier(SINGER_SEQUENCE))
-
-    #     if len(subkeys) > 0:
-    #         pk_temp_subkey_select_list = []
-    #         for pk in (key_properties + subkeys):
-    #             pk_temp_subkey_select_list.append(sql.SQL('{}.{}').format(full_temp_table_name,
-    #                                                                       sql.Identifier(pk)))
-    #         insert_distinct_on = sql.SQL(', ').join(pk_temp_subkey_select_list)
-
-    #         insert_distinct_order_by = sql.SQL(' ORDER BY {}, {}.{} DESC').format(
-    #             insert_distinct_on,
-    #             full_temp_table_name,
-    #             sql.Identifier(SINGER_SEQUENCE))
-    #     else:
-    #         insert_distinct_on = pk_temp_select
-    #         insert_distinct_order_by = distinct_order_by
-
-    #     insert_columns_list = []
-    #     dedupped_columns_list = []
-    #     for column in columns:
-    #         insert_columns_list.append(sql.SQL('{}').format(sql.Identifier(column)))
-    #         dedupped_columns_list.append(sql.SQL('{}.{}').format(sql.Identifier('dedupped'),
-    #                                                              sql.Identifier(column)))
-    #     insert_columns = sql.SQL(', ').join(insert_columns_list)
-    #     dedupped_columns = sql.SQL(', ').join(dedupped_columns_list)
-
-    #     return sql.SQL('''
-    #         DELETE FROM {table} USING (
-    #                 SELECT "dedupped".*
-    #                 FROM (
-    #                     SELECT *,
-    #                            ROW_NUMBER() OVER (PARTITION BY {pk_temp_select}
-    #                                               {distinct_order_by}) AS "pk_ranked"
-    #                     FROM {temp_table}
-    #                     {distinct_order_by}) AS "dedupped"
-    #                 JOIN {table} ON {pk_where}{sequence_join}
-    #                 WHERE pk_ranked = 1
-    #             ) AS "pks" WHERE {cxt_where};
-    #         INSERT INTO {table}({insert_columns}) (
-    #             SELECT {dedupped_columns}
-    #             FROM (
-    #                 SELECT *,
-    #                        ROW_NUMBER() OVER (PARTITION BY {insert_distinct_on}
-    #                                           {insert_distinct_order_by}) AS "pk_ranked"
-    #                 FROM {temp_table}
-    #                 {insert_distinct_order_by}) AS "dedupped"
-    #             LEFT JOIN {table} ON {pk_where}
-    #             WHERE pk_ranked = 1 AND {pk_null}
-    #         );
-    #         DROP TABLE {temp_table};
-    #         ''').format(table=full_table_name,
-    #                     temp_table=full_temp_table_name,
-    #                     pk_temp_select=pk_temp_select,
-    #                     pk_where=pk_where,
-    #                     cxt_where=cxt_where,
-    #                     sequence_join=sequence_join,
-    #                     distinct_order_by=distinct_order_by,
-    #                     pk_null=pk_null,
-    #                     insert_distinct_on=insert_distinct_on,
-    #                     insert_distinct_order_by=insert_distinct_order_by,
-    #                     insert_columns=insert_columns,
-    #                     dedupped_columns=dedupped_columns)
-
     def serialize_table_record_null_value(self, remote_schema, streamed_schema, field, value):
+        if value is None:
+            return '\\\\N'
         return value
 
     def serialize_table_record_datetime_value(self, remote_schema, streamed_schema, field, value):
         return arrow.get(value).format('YYYY-MM-DD HH:mm:ss.SSSSZZ')
 
-    # def persist_csv_rows(self,
-    #                      cur,
-    #                      remote_schema,
-    #                      temp_table_name,
-    #                      columns,
-    #                      csv_rows):
+    def _get_merge_sql(self, target_table_name, temp_table_name, key_properties, columns, subkeys):
+        key_match = '1 = 1'
+        for k in key_properties + subkeys:
+            key_match += 'AND t.{x} = s.{x}'.format(x=sql.identifier(k))
+        
+        return '''
+            MERGE INTO {db}.{schema}.{target_table} t
+            USING {db}.{schema}.{temp_table} s
+                ON {key_match}
+            WHEN MATCHED THEN
+                UPDATE SET {set}
+            WHEN NOT MATCHED THEN
+                INSERT ({insert_cols})
+                VALUES ({insert_vals})
+        '''.format(
+            db=sql.identifier(self.connection.database),
+            schema=sql.identifier(self.connection.schema),
+            target_table=sql.identifier(target_table_name),
+            temp_table=sql.identifier(temp_table_name),
+            key_match=key_match,
+            set=', '.join(['{x}=s.{x}'.format(x=sql.identifier(c)) for c in columns]),
+            insert_cols=', '.join([sql.identifier(c) for c in columns]),
+            insert_vals=', '.join(['s.{}'.format(sql.identifier(c)) for c in columns]))
 
-    #     copy = sql.SQL('COPY {}.{} ({}) FROM STDIN WITH CSV NULL AS {}').format(
-    #         sql.Identifier(self.postgres_schema),
-    #         sql.Identifier(temp_table_name),
-    #         sql.SQL(', ').join(map(sql.Identifier, columns)),
-    #         sql.Literal(RESERVED_NULL_DEFAULT))
-    #     cur.copy_expert(copy, csv_rows)
+    def persist_csv_rows(self,
+                         cur,
+                         remote_schema,
+                         temp_table_name,
+                         columns,
+                         csv_rows):
+        key_prefix = temp_table_name + SEPARATOR
 
-    #     pattern = re.compile(SINGER_LEVEL.format('[0-9]+'))
-    #     subkeys = list(filter(lambda header: re.match(pattern, header) is not None, columns))
+        bucket, key = self.s3.persist(csv_rows,
+                                      key_prefix=key_prefix)
 
-    #     canonicalized_key_properties = [self.fetch_column_from_path((key_property,), remote_schema)[0]
-    #                                     for key_property in remote_schema['key_properties']]
+        cur.execute('''
+            COPY INTO {db}.{schema}.{table} ({cols})
+            FROM 's3://{bucket}/{key}'
+                credentials=(AWS_KEY_ID=%s AWS_SECRET_KEY=%s)
+            FILE_FORMAT = (TYPE = CSV EMPTY_FIELD_AS_NULL = FALSE)
+        '''.format(
+            db=sql.identifier(self.connection.database),
+            schema=sql.identifier(self.connection.schema),
+            table=sql.identifier(temp_table_name),
+            cols=','.join([sql.identifier(x) for x in columns]),
+            bucket=bucket,
+            key=key),
+            params=[
+                self.s3.credentials()['aws_access_key_id'],
+                self.s3.credentials()['aws_secret_access_key']])
 
-    #     update_sql = self._get_update_sql(remote_schema['name'],
-    #                                       temp_table_name,
-    #                                       canonicalized_key_properties,
-    #                                       columns,
-    #                                       subkeys)
-    #     cur.execute(update_sql)
+        pattern = re.compile(SINGER_LEVEL.format('[0-9]+'))
+        subkeys = list(filter(lambda header: re.match(pattern, header) is not None, columns))
+
+        canonicalized_key_properties = [self.fetch_column_from_path((key_property,), remote_schema)[0]
+                                        for key_property in remote_schema['key_properties']]
+
+        merge_sql = self._get_merge_sql(remote_schema['name'],
+                                        temp_table_name,
+                                        canonicalized_key_properties,
+                                        columns,
+                                        subkeys)
+
+        cur.execute(merge_sql)
+
+        cur.execute('DROP TABLE {}.{}.{}'.format(
+            sql.identifier(self.connection.database),
+            sql.identifier(self.connection.schema),
+            sql.identifier(temp_table_name)))
 
     def write_table_batch(self, cur, table_batch, metadata):
         remote_schema = table_batch['remote_schema']
@@ -431,29 +371,29 @@ class SnowflakeTarget(SQLInterface):
                                  {'version': remote_schema['version']},
                                  log_schema_changes=False)
 
-        # ## Make streamable CSV records
-        # csv_headers = list(remote_schema['schema']['properties'].keys())
-        # rows_iter = iter(table_batch['records'])
+        ## Make streamable CSV records
+        csv_headers = list(remote_schema['schema']['properties'].keys())
+        rows_iter = iter(table_batch['records'])
 
-        # def transform():
-        #     try:
-        #         row = next(rows_iter)
+        def transform():
+            try:
+                row = next(rows_iter)
 
-        #         with io.StringIO() as out:
-        #             writer = csv.DictWriter(out, csv_headers)
-        #             writer.writerow(row)
-        #             return out.getvalue()
-        #     except StopIteration:
-        #         return ''
+                with io.StringIO() as out:
+                    writer = csv.DictWriter(out, csv_headers)
+                    writer.writerow(row)
+                    return out.getvalue()
+            except StopIteration:
+                return ''
 
-        # csv_rows = TransformStream(transform)
+        csv_rows = TransformStream(transform)
 
-        # ## Persist csv rows
-        # self.persist_csv_rows(cur,
-        #                       remote_schema,
-        #                       target_table_name,
-        #                       csv_headers,
-        #                       csv_rows)
+        ## Persist csv rows
+        self.persist_csv_rows(cur,
+                              remote_schema,
+                              target_table_name,
+                              csv_headers,
+                              csv_rows)
 
         return len(table_batch['records'])
 
@@ -618,7 +558,7 @@ class SnowflakeTarget(SQLInterface):
         :return: JSONSchema
         """
         _format = None
-        if 'TIMESTAMP_TZ':
+        if sql_type == 'TIMESTAMP_TZ':
             json_type = 'string'
             _format = 'date-time'
         elif sql_type == 'NUMBER':
