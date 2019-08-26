@@ -552,7 +552,7 @@ def test_loading__column_type_change(db_prep):
                 [x for x in persisted_records if x[0] is not None and x[1] is not None and x[2] is not None])
             assert 0 == len([x for x in persisted_records if x[0] is None and x[1] is None and x[2] is None])
 
-@pytest.mark.xfail
+
 def test_loading__multi_types_columns(db_prep):
     stream_count = 50
     main(CONFIG, input_stream=MultiTypeStream(stream_count))
@@ -562,29 +562,29 @@ def test_loading__multi_types_columns(db_prep):
             assert_columns_equal(cur,
                                  'root',
                                  {
-                                     ('_sdc_primary_key', 'TEXT', 'YES'),
+                                     ('_sdc_primary_key', 'TEXT', 'NO'),
                                      ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
                                      ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_table_version', 'NUMBER', 'YES'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                      ('every_type__i', 'NUMBER', 'YES'),
-                                     ('every_type__f', 'double precision', 'YES'),
+                                     ('every_type__f', 'FLOAT', 'YES'),
                                      ('every_type__b', 'BOOLEAN', 'YES'),
                                      ('every_type__t', 'TIMESTAMP_TZ', 'YES'),
                                      ('every_type__i__1', 'NUMBER', 'YES'),
-                                     ('every_type__f__1', 'double precision', 'YES'),
+                                     ('every_type__f__1', 'FLOAT', 'YES'),
                                      ('every_type__b__1', 'BOOLEAN', 'YES'),
-                                     ('number_which_only_comes_as_integer', 'double precision', 'YES')
+                                     ('number_which_only_comes_as_integer', 'FLOAT', 'NO')
                                  })
 
             assert_columns_equal(cur,
                                  'root__every_type',
                                  {
-                                     ('_sdc_source_key__sdc_primary_key', 'TEXT', 'YES'),
+                                     ('_sdc_source_key__sdc_primary_key', 'TEXT', 'NO'),
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
-                                     ('_sdc_value', 'NUMBER', 'YES'),
+                                     ('_sdc_value', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
