@@ -40,7 +40,7 @@ def get_count_sql(cursor, table_name):
 def assert_count_equal(cursor, table_name, expected_count):
     cursor.execute(get_count_sql(cursor, table_name))
 
-    assert cursor.fetchone()[0] == 0
+    assert cursor.fetchone()[0] == expected_count
 
 def get_pk_key(pks, obj, subrecord=False):
     pk_parts = []
