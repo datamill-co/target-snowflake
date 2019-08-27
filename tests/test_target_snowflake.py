@@ -628,7 +628,7 @@ def test_upsert(db_prep):
             assert_count_equal(cur, 'cats', 200)
         assert_records(conn, stream.records, 'cats', 'id')
 
-@pytest.mark.xfail
+
 def test_nested_delete_on_parent(db_prep):
     stream = CatStream(100, nested_count=3)
     main(CONFIG, input_stream=stream)
