@@ -425,6 +425,7 @@ def test_loading__column_type_change(db_prep):
                                      ('name', 'TEXT', 'NO'),
                                      ('paw_size', 'NUMBER', 'NO'),
                                      ('paw_colour', 'TEXT', 'NO'),
+                                     ('paw_toe_count', 'NUMBER', 'YES'),
                                      ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
@@ -474,6 +475,7 @@ def test_loading__column_type_change(db_prep):
                                      ('name__b', 'BOOLEAN', 'YES'),
                                      ('paw_size', 'NUMBER', 'NO'),
                                      ('paw_colour', 'TEXT', 'NO'),
+                                     ('paw_toe_count', 'NUMBER', 'YES'),
                                      ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
@@ -527,6 +529,7 @@ def test_loading__column_type_change(db_prep):
                                      ('name__i', 'NUMBER', 'YES'),
                                      ('paw_size', 'NUMBER', 'NO'),
                                      ('paw_colour', 'TEXT', 'NO'),
+                                     ('paw_toe_count', 'NUMBER', 'YES'),
                                      ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
@@ -705,7 +708,7 @@ def test_full_table_replication(db_prep):
 
     assert older_version_count == version_2_count
 
-@pytest.mark.xfail
+
 def test_deduplication_newer_rows(db_prep):
     stream = CatStream(100, nested_count=3, duplicates=2)
     main(CONFIG, input_stream=stream)
