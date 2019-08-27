@@ -473,7 +473,7 @@ def create_schema():
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                'CREATE SCHEMA IF NOT EXISTS {}.{};'.format(
+                'CREATE SCHEMA {}.{};'.format(
                 sql.identifier(CONFIG['snowflake_database']),
                 sql.identifier(CONFIG['snowflake_schema'])))
 
