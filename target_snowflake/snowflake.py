@@ -33,7 +33,11 @@ class SnowflakeTarget(SQLInterface):
     CREATE_TABLE_INITIAL_COLUMN_TYPE = 'BOOLEAN'
 
     def __init__(self, connection, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
-        self.LOGGER.info('SnowflakeTarget created...')
+        self.LOGGER.info('SnowflakeTarget created. Connected to WAREHOUSE: `{}` DB: `{}` SCHEMA: `{}`'.format(
+            connection.configured_warehouse,
+            connection.configured_database,
+            connection.configured_schema
+        ))
 
         if logging_level:
             level = logging.getLevelName(logging_level)
@@ -52,9 +56,9 @@ class SnowflakeTarget(SQLInterface):
             self.LOGGER.debug('SnowflakeTarget is persisting empty tables')
 
     def metrics_tags(self):
-        return {'warehouse': self.connection.warehouse,
-                'database': self.connection.database,
-                'schema': self.connection.schema}
+        return {'warehouse': self.connection.configured_warehouse,
+                'database': self.connection.configured_database,
+                'schema': self.connection.configured_schema}
 
     def setup_table_mapping_cache(self, cur):
         self.table_mapping_cache = {}
@@ -63,8 +67,8 @@ class SnowflakeTarget(SQLInterface):
             '''
             SHOW TABLES IN SCHEMA {}.{}
             '''.format(
-                sql.identifier(self.connection.database),
-                sql.identifier(self.connection.schema)))
+                sql.identifier(self.connection.configured_database),
+                sql.identifier(self.connection.configured_schema)))
 
         for row in cur.fetchall():
             mapped_name = row[1]
@@ -182,16 +186,16 @@ class SnowflakeTarget(SQLInterface):
                         SHOW TABLES LIKE '{}%' IN SCHEMA {}.{}
                         '''.format(
                             versioned_root_table,
-                            sql.identifier(self.connection.database),
-                            sql.identifier(self.connection.schema)))
+                            sql.identifier(self.connection.configured_database),
+                            sql.identifier(self.connection.configured_schema)))
 
                     for versioned_table_name in [x[1] for x in cur.fetchall()]:
                         table_name = root_table_name + versioned_table_name[len(versioned_root_table):]
                         table_path = names_to_paths[table_name]
 
                         args = {'db_schema': '{}.{}'.format(
-                                    sql.identifier(self.connection.database),
-                                    sql.identifier(self.connection.schema)),
+                                    sql.identifier(self.connection.configured_database),
+                                    sql.identifier(self.connection.configured_schema)),
                                 'stream_table_old': sql.identifier(table_name +
                                                                 SEPARATOR +
                                                                 'old'),
@@ -200,12 +204,12 @@ class SnowflakeTarget(SQLInterface):
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{stream_table} RENAME TO {stream_table_old}
+                            ALTER TABLE {db_schema}.{stream_table} RENAME TO {db_schema}.{stream_table_old}
                             '''.format(**args))
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{version_table} RENAME TO {stream_table}
+                            ALTER TABLE {db_schema}.{version_table} RENAME TO {db_schema}.{stream_table}
                             '''.format(**args))
 
                         cur.execute(
@@ -254,8 +258,8 @@ class SnowflakeTarget(SQLInterface):
         cur.execute('''
             CREATE TABLE {}.{}.{} ({} {})
             '''.format(
-                sql.identifier(self.connection.database),
-                sql.identifier(self.connection.schema),
+                sql.identifier(self.connection.configured_database),
+                sql.identifier(self.connection.configured_schema),
                 sql.identifier(name),
                 # Snowflake does not allow for creation of tables with no columns
                 sql.identifier(self.CREATE_TABLE_INITIAL_COLUMN),
@@ -291,13 +295,13 @@ class SnowflakeTarget(SQLInterface):
 
     def perform_update(self, cur, target_table_name, temp_table_name, key_properties, columns, subkeys):
         full_table_name = '{}.{}.{}'.format(
-            sql.identifier(self.connection.database),
-            sql.identifier(self.connection.schema),
+            sql.identifier(self.connection.configured_database),
+            sql.identifier(self.connection.configured_schema),
             sql.identifier(target_table_name))
 
         full_temp_table_name = '{}.{}.{}'.format(
-            sql.identifier(self.connection.database),
-            sql.identifier(self.connection.schema),
+            sql.identifier(self.connection.configured_database),
+            sql.identifier(self.connection.configured_schema),
             sql.identifier(temp_table_name))
 
         pk_temp_select_list = []
@@ -427,8 +431,8 @@ class SnowflakeTarget(SQLInterface):
                 credentials=(AWS_KEY_ID=%s AWS_SECRET_KEY=%s)
             FILE_FORMAT = (TYPE = CSV EMPTY_FIELD_AS_NULL = FALSE)
         '''.format(
-            db=sql.identifier(self.connection.database),
-            schema=sql.identifier(self.connection.schema),
+            db=sql.identifier(self.connection.configured_database),
+            schema=sql.identifier(self.connection.configured_schema),
             table=sql.identifier(temp_table_name),
             cols=','.join([sql.identifier(x) for x in columns]),
             bucket=bucket,
@@ -496,8 +500,8 @@ class SnowflakeTarget(SQLInterface):
             ALTER TABLE {database}.{table_schema}.{table_name}
             ADD COLUMN {column_name} {data_type}
             '''.format(
-                database=sql.identifier(self.connection.database),
-                table_schema=sql.identifier(self.connection.schema),
+                database=sql.identifier(self.connection.configured_database),
+                table_schema=sql.identifier(self.connection.configured_schema),
                 table_name=sql.identifier(table_name),
                 column_name=sql.identifier(column_name),
                 data_type=self.json_schema_to_sql_type(column_schema)))
@@ -507,8 +511,8 @@ class SnowflakeTarget(SQLInterface):
             UPDATE {database}.{table_schema}.{table_name}
             SET {to_column} = {from_column}
             '''.format(
-                database=sql.identifier(self.connection.database),
-                table_schema=sql.identifier(self.connection.schema),
+                database=sql.identifier(self.connection.configured_database),
+                table_schema=sql.identifier(self.connection.configured_schema),
                 table_name=sql.identifier(table_name),
                 to_column=sql.identifier(to_column),
                 from_column=sql.identifier(from_column)))
@@ -518,8 +522,8 @@ class SnowflakeTarget(SQLInterface):
             ALTER TABLE {database}.{table_schema}.{table_name}
             DROP COLUMN {column_name}
             '''.format(
-                database=sql.identifier(self.connection.database),
-                table_schema=sql.identifier(self.connection.schema),
+                database=sql.identifier(self.connection.configured_database),
+                table_schema=sql.identifier(self.connection.configured_schema),
                 table_name=sql.identifier(table_name),
                 column_name=sql.identifier(column_name)))
 
@@ -528,8 +532,8 @@ class SnowflakeTarget(SQLInterface):
             ALTER TABLE {database}.{table_schema}.{table_name}
             ALTER COLUMN {column_name} DROP NOT NULL
             '''.format(
-            database=sql.identifier(self.connection.database),
-            table_schema=sql.identifier(self.connection.schema),
+            database=sql.identifier(self.connection.configured_database),
+            table_schema=sql.identifier(self.connection.configured_schema),
             table_name=sql.Identifier(table_name),
             column_name=sql.Identifier(column_name)))
 
@@ -545,8 +549,8 @@ class SnowflakeTarget(SQLInterface):
         cur.execute('''
             COMMENT ON TABLE {}.{}.{} IS '{}'
             '''.format(
-            sql.identifier(self.connection.database),
-            sql.identifier(self.connection.schema),
+            sql.identifier(self.connection.configured_database),
+            sql.identifier(self.connection.configured_schema),
             sql.identifier(table_name),
             json.dumps(metadata)))
 
@@ -556,8 +560,8 @@ class SnowflakeTarget(SQLInterface):
             SHOW TABLES LIKE '{}' IN SCHEMA {}.{}
             '''.format(
                 table_name,
-                sql.identifier(self.connection.database),
-                sql.identifier(self.connection.schema),))
+                sql.identifier(self.connection.configured_database),
+                sql.identifier(self.connection.configured_schema),))
         tables = cur.fetchall()
 
         if not tables:
@@ -567,8 +571,8 @@ class SnowflakeTarget(SQLInterface):
             raise SnowflakeError(
                 '{} tables returned while searching for: {}.{}.{}'.format(
                     len(tables),
-                    self.connection.database,
-                    self.connection.schema,
+                    self.connection.configured_database,
+                    self.connection.configured_schema,
                     table_name
                 ))
 
@@ -609,8 +613,8 @@ class SnowflakeTarget(SQLInterface):
         cur.execute('''
             SELECT COUNT(1) FROM {}.{}.{}
             '''.format(
-                sql.identifier(self.connection.database),
-                sql.identifier(self.connection.schema),
+                sql.identifier(self.connection.configured_database),
+                sql.identifier(self.connection.configured_schema),
                 sql.identifier(table_name)
             ))
 
@@ -627,8 +631,8 @@ class SnowflakeTarget(SQLInterface):
             FROM {}.information_schema.columns
             WHERE table_schema = '{}' AND table_name = '{}'
             '''.format(
-                sql.identifier(self.connection.database),
-                self.connection.schema,
+                sql.identifier(self.connection.configured_database),
+                self.connection.configured_schema,
                 name
             ))
 

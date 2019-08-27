@@ -77,6 +77,16 @@ here.
 | `logging_level`             | `["string", "null"]`  | `"INFO"`   | The level for logging. Set to `DEBUG` to get things like queries executed, timing of those queries, etc. See [Python's Logger Levels](https://docs.python.org/3/library/logging.html#levels) for information about valid values.                                                                                                          |
 | `persist_empty_tables`      | `["boolean", "null"]` | `False`    | Whether the Target should create tables which have no records present in Remote.                                                                                                                                                                                                                                                          |
 | `state_support`             | `["boolean", "null"]` | `True`     | Whether the Target should emit `STATE` messages to stdout for further consumption. In this mode, which is on by default, STATE messages are buffered in memory until all the records that occurred before them are flushed according to the batch flushing schedule the target is configured with.                                        |
+| `target_s3`                 | `["object"]`          | `N/A`      | See `S3` below                                                                                                                                                                                                                                                                                                                            |
+
+#### S3 Config.json
+
+| Field                   | Type                 | Default | Details                                                                      |
+| ----------------------- | -------------------- | ------- | ---------------------------------------------------------------------------- |
+| `aws_access_key_id`     | `["string"]`         | `N/A`   |                                                                              |
+| `aws_secret_access_key` | `["string"]`         | `N/A`   |                                                                              |
+| `bucket`                | `["string"]`         | `N/A`   | Bucket where staging files should be uploaded to.                            |
+| `key_prefix`            | `["string", "null"]` | `""`    | Prefix for staging file uploads to allow for better delineation of tmp files |
 
 ## Limitations
 
@@ -85,6 +95,28 @@ here.
     identifiers to lowercase alphanumerics, and underscores
   - This is done to make querability/useability in Snowflake simpler, so as to not require users to _have_ to use
     sometimes cumbersome quotes to query their data
+- Requires a [JSON Schema](https://json-schema.org/) for every stream.
+- Only string, string with date-time format, integer, number, boolean,
+  object, and array types with or without null are supported. Arrays can
+  have any of the other types listed, including objects as types within
+  items.
+  - Example of JSON Schema types that work
+    - `['number']`
+    - `['string']`
+    - `['string', 'null']`
+    - `['string', 'integer']`
+    - `['integer', 'number']`
+  - Exmaple of JSON Schema types that **DO NOT** work
+    - `['any']`
+    - `['null']`
+- JSON Schema combinations such as `anyOf` and `allOf` are not supported.
+- JSON Schema \$ref is partially supported:
+  - **_NOTE:_** The following limitations are known to **NOT** fail gracefully
+  - Presently you cannot have any circular or recursive `$ref`s
+  - `$ref`s must be present within the schema:
+    - URI's do not work
+    - if the `$ref` is broken, the behaviour is considered unexpected
+- Any values which are the `string` `\\N` will be streamed to Snowflake as the literal `null`
 
 ## Sponsorship
 

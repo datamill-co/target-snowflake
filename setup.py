@@ -12,16 +12,17 @@ setup(
     name='target-snowflake',
     url='https://github.com/datamill-co/target-snowflake',
     author='datamill',
-    version="0.0.0",
+    version="0.0.1",
     description='Singer.io target for loading data into Snowflake',
     long_description=long_description,
     long_description_content_type='text/markdown',
     classifiers=['Programming Language :: Python :: 3 :: Only'],
     py_modules=['target_snowflake'],
     install_requires=[
+        'boto3==1.9.205', # Dependency conflict with snowflake and target-redshift
         'singer-python==5.6.1', # Dependency conflict with snowflake
         'singer-target-postgres==0.1.10',
-        'snowflake-connector-python==1.8.7',
+        'snowflake-connector-python==1.9.0',
         'target-redshift==0.0.9'
     ],
     setup_requires=[
