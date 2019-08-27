@@ -425,7 +425,6 @@ def test_loading__column_type_change(db_prep):
                                      ('name', 'TEXT', 'NO'),
                                      ('paw_size', 'NUMBER', 'NO'),
                                      ('paw_colour', 'TEXT', 'NO'),
-                                     ('paw_toe_count', 'NUMBER', 'YES'),
                                      ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
@@ -475,7 +474,6 @@ def test_loading__column_type_change(db_prep):
                                      ('name__b', 'BOOLEAN', 'YES'),
                                      ('paw_size', 'NUMBER', 'NO'),
                                      ('paw_colour', 'TEXT', 'NO'),
-                                     ('paw_toe_count', 'NUMBER', 'YES'),
                                      ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
@@ -529,7 +527,6 @@ def test_loading__column_type_change(db_prep):
                                      ('name__i', 'NUMBER', 'YES'),
                                      ('paw_size', 'NUMBER', 'NO'),
                                      ('paw_colour', 'TEXT', 'NO'),
-                                     ('paw_toe_count', 'NUMBER', 'YES'),
                                      ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
