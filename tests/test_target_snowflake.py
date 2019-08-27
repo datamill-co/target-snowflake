@@ -736,7 +736,7 @@ def test_deduplication_newer_rows(db_prep):
     for record in dup_cat_records:
         assert record[0] == stream.sequence + 200
 
-@pytest.mark.xfail
+
 def test_deduplication_older_rows(db_prep):
     stream = CatStream(100, nested_count=2, duplicates=2, duplicate_sequence_delta=-100)
     main(CONFIG, input_stream=stream)
