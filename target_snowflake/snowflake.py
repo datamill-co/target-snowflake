@@ -159,7 +159,7 @@ class SnowflakeTarget(SQLInterface):
                 raise SnowflakeError(message, ex)
 
     def activate_version(self, stream_buffer, version):
-        with self.conn.cursor() as cur:
+        with self.connection.cursor() as cur:
             try:
                 self.setup_table_mapping_cache(cur)
                 root_table_name = self.add_table_mapping(cur, (stream_buffer.stream,), {})
@@ -200,17 +200,17 @@ class SnowflakeTarget(SQLInterface):
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{stream_table} RENAME {stream_table_old}
+                            ALTER TABLE {db_schema}.{stream_table} RENAME TO {stream_table_old}
                             '''.format(**args))
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{verions_table} RENAME {stream_table}
+                            ALTER TABLE {db_schema}.{version_table} RENAME TO {stream_table}
                             '''.format(**args))
 
                         cur.execute(
                             '''
-                            DROP TABLE {table_schema}.{stream_table_old}
+                            DROP TABLE {db_schema}.{stream_table_old}
                             '''.format(**args))
 
                         self.connection.commit()
@@ -225,7 +225,7 @@ class SnowflakeTarget(SQLInterface):
                         metadata['path'] = table_path
                         self._set_table_metadata(cur, table_name, metadata)
             except Exception as ex:
-                self.connection.rollack()
+                self.connection.rollback()
                 message = '{} - Exception activating table version {}'.format(
                     stream_buffer.stream,
                     version)

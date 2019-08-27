@@ -650,7 +650,7 @@ def test_nested_delete_on_parent(db_prep):
 
     assert low_nested < high_nested
 
-@pytest.mark.xfail
+
 def test_full_table_replication(db_prep):
     stream = CatStream(110, version=0, nested_count=3)
     main(CONFIG, input_stream=stream)
