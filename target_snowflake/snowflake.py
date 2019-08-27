@@ -204,12 +204,12 @@ class SnowflakeTarget(SQLInterface):
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{stream_table} RENAME TO {stream_table_old}
+                            ALTER TABLE {db_schema}.{stream_table} RENAME TO {db_schema}.{stream_table_old}
                             '''.format(**args))
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{version_table} RENAME TO {stream_table}
+                            ALTER TABLE {db_schema}.{version_table} RENAME TO {db_schema}.{stream_table}
                             '''.format(**args))
 
                         cur.execute(
