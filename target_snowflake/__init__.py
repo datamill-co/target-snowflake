@@ -25,6 +25,7 @@ def main(config, input_stream=None):
             account=config.get('snowflake_account'),
             warehouse=config.get('snowflake_warehouse'),
             database=config.get('snowflake_database'),
+            schema=config.get('snowflake_schema', 'PUBLIC'),
             autocommit=False
     ) as connection:
         s3_config = config.get('target_s3')
@@ -37,7 +38,6 @@ def main(config, input_stream=None):
         target = SnowflakeTarget(
             connection,
             s3,
-            schema=config.get('snowflake_schema', 'PUBLIC'),
             logging_level=config.get('logging_level'),
             persist_empty_tables=config.get('persist_empty_tables')
         )

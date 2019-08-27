@@ -18,8 +18,8 @@ def assert_columns_equal(cursor, table_name, expected_column_tuples):
         FROM {}.information_schema.columns
         WHERE table_schema = '{}' AND table_name = '{}'
     '''.format(
-        sql.identifier(cursor.connection.database),
-        cursor.connection.schema,
+        sql.identifier(CONFIG['snowflake_database']),
+        CONFIG['snowflake_schema'],
         table_name))
 
     columns = []
@@ -29,16 +29,16 @@ def assert_columns_equal(cursor, table_name, expected_column_tuples):
     assert set(columns) == expected_column_tuples
 
 
-def get_count_sql(cursor, table_name):
+def get_count_sql(table_name):
     return '''
         SELECT COUNT(*) FROM {}.{}.{}
     '''.format(
-        sql.identifier(cursor.connection.database),
-        sql.identifier(cursor.connection.schema),
+        sql.identifier(CONFIG['snowflake_database']),
+        sql.identifier(CONFIG['snowflake_schema']),
         sql.identifier(table_name))
 
 def assert_count_equal(cursor, table_name, expected_count):
-    cursor.execute(get_count_sql(cursor, table_name))
+    cursor.execute(get_count_sql(table_name))
 
     assert cursor.fetchone()[0] == expected_count
 
@@ -109,8 +109,8 @@ def assert_records(conn, records, table_name, pks, match_pks=False):
         cur.execute('''
             SELECT * FROM {}.{}.{}
         '''.format(
-            sql.identifier(conn.database),
-            sql.identifier(conn.schema),
+            sql.identifier(CONFIG['snowflake_database']),
+            sql.identifier(CONFIG['snowflake_schema']),
             sql.identifier(table_name)))
         persisted_records_raw = cur.fetchall()
 
@@ -138,8 +138,8 @@ def assert_records(conn, records, table_name, pks, match_pks=False):
             cur.execute('''
                 SELECT * FROM {}.{}.{}
             '''.format(
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier(table_name + '__' + subtable_name)))
             persisted_records_raw = cur.fetchall()
 
@@ -391,8 +391,8 @@ def test_loading__new_non_null_column(db_prep):
             '''.format(
                 sql.identifier('id'),
                 sql.identifier('paw_toe_count'),
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('cats')
             ))
 
@@ -433,8 +433,8 @@ def test_loading__column_type_change(db_prep):
                 SELECT {} FROM {}.{}.{}
             '''.format(
                 sql.identifier('name'),
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('cats')
             ))
             persisted_records = cur.fetchall()
@@ -483,8 +483,8 @@ def test_loading__column_type_change(db_prep):
             '''.format(
                 sql.identifier('name__s'),
                 sql.identifier('name__b'),
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('cats')
             ))
             persisted_records = cur.fetchall()
@@ -537,8 +537,8 @@ def test_loading__column_type_change(db_prep):
                 sql.identifier('name__s'),
                 sql.identifier('name__b'),
                 sql.identifier('name__i'),
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('cats')
             ))
             persisted_records = cur.fetchall()
@@ -592,8 +592,8 @@ def test_loading__multi_types_columns(db_prep):
                 SELECT {} FROM {}.{}.{}
             '''.format(
                 sql.identifier('number_which_only_comes_as_integer'),
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('root')
             ))
             persisted_records = cur.fetchall()
@@ -635,7 +635,7 @@ def test_nested_delete_on_parent(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             high_nested = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id')
 
@@ -644,7 +644,7 @@ def test_nested_delete_on_parent(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             low_nested = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id')
 
@@ -657,9 +657,9 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats'))
+            cur.execute(get_count_sql('cats'))
             version_0_count = cur.fetchone()[0]
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             version_0_sub_count = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id', match_pks=True)
 
@@ -671,9 +671,9 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats'))
+            cur.execute(get_count_sql('cats'))
             version_1_count = cur.fetchone()[0]
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             version_1_sub_count = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id', match_pks=True)
 
@@ -685,9 +685,9 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats'))
+            cur.execute(get_count_sql('cats'))
             version_2_count = cur.fetchone()[0]
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             version_2_sub_count = cur.fetchone()[0]
         assert_records(conn, stream.records, 'cats', 'id', match_pks=True)
 
@@ -700,7 +700,7 @@ def test_full_table_replication(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats'))
+            cur.execute(get_count_sql('cats'))
             older_version_count = cur.fetchone()[0]
 
     assert older_version_count == version_2_count
@@ -712,9 +712,9 @@ def test_deduplication_newer_rows(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats'))
+            cur.execute(get_count_sql('cats'))
             table_count = cur.fetchone()[0]
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
 
             cur.execute('''
@@ -722,8 +722,8 @@ def test_deduplication_newer_rows(db_prep):
                 FROM {}.{}.{}
                 WHERE "id" in ({})
             '''.format(
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('cats'),
                 ','.join(["'{}'".format(x) for x in stream.duplicate_pks_used])
             ))
@@ -743,9 +743,9 @@ def test_deduplication_older_rows(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats'))
+            cur.execute(get_count_sql('cats'))
             table_count = cur.fetchone()[0]
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
             
             cur.execute('''
@@ -753,8 +753,8 @@ def test_deduplication_older_rows(db_prep):
                 FROM {}.{}.{}
                 WHERE "id" in ({})
             '''.format(
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('cats'),
                 ','.join(["'{}'".format(x) for x in stream.duplicate_pks_used])
             ))
@@ -781,17 +781,17 @@ def test_deduplication_existing_new_rows(db_prep):
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:
-            cur.execute(get_count_sql(cur, 'cats'))
+            cur.execute(get_count_sql('cats'))
             table_count = cur.fetchone()[0]
-            cur.execute(get_count_sql(cur, 'cats__adoption__immunizations'))
+            cur.execute(get_count_sql('cats__adoption__immunizations'))
             nested_table_count = cur.fetchone()[0]
 
             cur.execute('''
                 SELECT DISTINCT "_sdc_sequence"
                 FROM {}.{}.{}
             '''.format(
-                sql.identifier(conn.database),
-                sql.identifier(conn.schema),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
                 sql.identifier('cats')
             ))
             sequences = cur.fetchall()

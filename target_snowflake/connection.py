@@ -32,20 +32,11 @@ class Connection(SnowflakeConnection):
     def __init__(self, **kwargs):
         self.LOGGER = singer.get_logger()
 
-        # level = logging.getLevelName('DEBUG')
-        # self.LOGGER.setLevel(level)
+        self.configured_warehouse = kwargs.get('warehouse')
+        self.configured_database = kwargs.get('database')
+        self.configured_schema = kwargs.get('schema')
 
-        self.__objects_set = False
         SnowflakeConnection.__init__(self, **kwargs)
-        self.__set_current_objects()
-
-    def __set_current_objects(self):
-        if self.__objects_set:
-            return None
-        
-        self.__objects_set = True
-
-        self._set_current_objects()
 
     def cursor(self, as_dict=False):
         cursor_class = MillisLoggingCursor
