@@ -19,6 +19,7 @@ setup(
     classifiers=['Programming Language :: Python :: 3 :: Only'],
     py_modules=['target_snowflake'],
     install_requires=[
+        'boto3==1.9.216', # Dependency conflict with snowflake and target-redshift
         'singer-python==5.6.1', # Dependency conflict with snowflake
         'singer-target-postgres==0.1.10',
         'snowflake-connector-python==1.8.7',
