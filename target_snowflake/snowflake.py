@@ -11,7 +11,8 @@ from psycopg2 import sql
 from target_postgres import json_schema
 from target_postgres.postgres import TransformStream
 from target_postgres.singer_stream import (
-    SINGER_LEVEL
+    SINGER_LEVEL,
+    SINGER_SEQUENCE
 )
 from target_postgres.sql_base import SEPARATOR, SQLInterface
 
@@ -158,7 +159,7 @@ class SnowflakeTarget(SQLInterface):
                 raise SnowflakeError(message, ex)
 
     def activate_version(self, stream_buffer, version):
-        with self.conn.cursor() as cur:
+        with self.connection.cursor() as cur:
             try:
                 self.setup_table_mapping_cache(cur)
                 root_table_name = self.add_table_mapping(cur, (stream_buffer.stream,), {})
@@ -199,17 +200,17 @@ class SnowflakeTarget(SQLInterface):
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{stream_table} RENAME {stream_table_old}
+                            ALTER TABLE {db_schema}.{stream_table} RENAME TO {stream_table_old}
                             '''.format(**args))
 
                         cur.execute(
                             '''
-                            ALTER TABLE {db_schema}.{verions_table} RENAME {stream_table}
+                            ALTER TABLE {db_schema}.{version_table} RENAME TO {stream_table}
                             '''.format(**args))
 
                         cur.execute(
                             '''
-                            DROP TABLE {table_schema}.{stream_table_old}
+                            DROP TABLE {db_schema}.{stream_table_old}
                             '''.format(**args))
 
                         self.connection.commit()
@@ -224,7 +225,7 @@ class SnowflakeTarget(SQLInterface):
                         metadata['path'] = table_path
                         self._set_table_metadata(cur, table_name, metadata)
             except Exception as ex:
-                self.connection.rollack()
+                self.connection.rollback()
                 message = '{} - Exception activating table version {}'.format(
                     stream_buffer.stream,
                     version)
@@ -288,29 +289,126 @@ class SnowflakeTarget(SQLInterface):
     def serialize_table_record_datetime_value(self, remote_schema, streamed_schema, field, value):
         return arrow.get(value).format('YYYY-MM-DD HH:mm:ss.SSSSZZ')
 
-    def _get_merge_sql(self, target_table_name, temp_table_name, key_properties, columns, subkeys):
-        key_match = '1 = 1'
-        for k in key_properties + subkeys:
-            key_match += 'AND t.{x} = s.{x}'.format(x=sql.identifier(k))
-        
-        return '''
-            MERGE INTO {db}.{schema}.{target_table} t
-            USING {db}.{schema}.{temp_table} s
-                ON {key_match}
-            WHEN MATCHED THEN
-                UPDATE SET {set}
-            WHEN NOT MATCHED THEN
-                INSERT ({insert_cols})
-                VALUES ({insert_vals})
-        '''.format(
-            db=sql.identifier(self.connection.database),
-            schema=sql.identifier(self.connection.schema),
-            target_table=sql.identifier(target_table_name),
-            temp_table=sql.identifier(temp_table_name),
-            key_match=key_match,
-            set=', '.join(['{x}=s.{x}'.format(x=sql.identifier(c)) for c in columns]),
-            insert_cols=', '.join([sql.identifier(c) for c in columns]),
-            insert_vals=', '.join(['s.{}'.format(sql.identifier(c)) for c in columns]))
+    def perform_update(self, cur, target_table_name, temp_table_name, key_properties, columns, subkeys):
+        full_table_name = '{}.{}.{}'.format(
+            sql.identifier(self.connection.database),
+            sql.identifier(self.connection.schema),
+            sql.identifier(target_table_name))
+
+        full_temp_table_name = '{}.{}.{}'.format(
+            sql.identifier(self.connection.database),
+            sql.identifier(self.connection.schema),
+            sql.identifier(temp_table_name))
+
+        pk_temp_select_list = []
+        pk_where_list = []
+        pk_null_list = []
+        cxt_where_list = []
+        for pk in key_properties:
+            pk_identifier = sql.identifier(pk)
+            pk_temp_select_list.append('{}.{}'.format(full_temp_table_name,
+                                                      pk_identifier))
+
+            pk_where_list.append(
+                '{table}.{pk} = "dedupped".{pk}'.format(
+                    table=full_table_name,
+                    temp_table=full_temp_table_name,
+                    pk=pk_identifier))
+
+            pk_null_list.append(
+                '{table}.{pk} IS NULL'.format(
+                    table=full_table_name,
+                    pk=pk_identifier))
+
+            cxt_where_list.append(
+                '{table}.{pk} = "pks".{pk}'.format(
+                    table=full_table_name,
+                    pk=pk_identifier))
+        pk_temp_select = ', '.join(pk_temp_select_list)
+        pk_where = ' AND '.join(pk_where_list)
+        pk_null = ' AND '.join(pk_null_list)
+        cxt_where = ' AND '.join(cxt_where_list)
+
+        sequence_join = ' AND "dedupped".{} >= {}.{}'.format(
+            sql.identifier(SINGER_SEQUENCE),
+            full_table_name,
+            sql.identifier(SINGER_SEQUENCE))
+
+        distinct_order_by = ' ORDER BY {}, {}.{} DESC'.format(
+            pk_temp_select,
+            full_temp_table_name,
+            sql.identifier(SINGER_SEQUENCE))
+
+        if len(subkeys) > 0:
+            pk_temp_subkey_select_list = []
+            for pk in (key_properties + subkeys):
+                pk_temp_subkey_select_list.append('{}.{}'.format(full_temp_table_name,
+                                                                 sql.identifier(pk)))
+            insert_distinct_on = ', '.join(pk_temp_subkey_select_list)
+
+            insert_distinct_order_by = ' ORDER BY {}, {}.{} DESC'.format(
+                insert_distinct_on,
+                full_temp_table_name,
+                sql.identifier(SINGER_SEQUENCE))
+        else:
+            insert_distinct_on = pk_temp_select
+            insert_distinct_order_by = distinct_order_by
+
+        insert_columns_list = []
+        dedupped_columns_list = []
+        for column in columns:
+            insert_columns_list.append(sql.identifier(column))
+            dedupped_columns_list.append('{}.{}'.format(sql.identifier('dedupped'),
+                                                        sql.identifier(column)))
+        insert_columns = ', '.join(insert_columns_list)
+        dedupped_columns = ', '.join(dedupped_columns_list)
+
+        cur.execute('''
+            DELETE FROM {table} USING (
+                    SELECT "dedupped".*
+                    FROM (
+                        SELECT *,
+                               ROW_NUMBER() OVER (PARTITION BY {pk_temp_select}
+                                                  {distinct_order_by}) AS "_sdc_pk_ranked"
+                        FROM {temp_table}
+                        {distinct_order_by}) AS "dedupped"
+                    JOIN {table} ON {pk_where}{sequence_join}
+                    WHERE "_sdc_pk_ranked" = 1
+                ) AS "pks" WHERE {cxt_where};
+            '''.format(
+                table=full_table_name,
+                temp_table=full_temp_table_name,
+                pk_temp_select=pk_temp_select,
+                pk_where=pk_where,
+                cxt_where=cxt_where,
+                sequence_join=sequence_join,
+                distinct_order_by=distinct_order_by))
+
+        cur.execute('''
+            INSERT INTO {table}({insert_columns}) (
+                SELECT {dedupped_columns}
+                FROM (
+                    SELECT *,
+                           ROW_NUMBER() OVER (PARTITION BY {insert_distinct_on}
+                                              {insert_distinct_order_by}) AS "_sdc_pk_ranked"
+                    FROM {temp_table}
+                    {insert_distinct_order_by}) AS "dedupped"
+                LEFT JOIN {table} ON {pk_where}
+                WHERE "_sdc_pk_ranked" = 1 AND {pk_null}
+            );
+            '''.format(
+                table=full_table_name,
+                temp_table=full_temp_table_name,
+                pk_where=pk_where,
+                pk_null=pk_null,
+                insert_distinct_on=insert_distinct_on,
+                insert_distinct_order_by=insert_distinct_order_by,
+                insert_columns=insert_columns,
+                dedupped_columns=dedupped_columns))
+
+        cur.execute('''
+            DROP TABLE {temp_table};
+            '''.format(temp_table=full_temp_table_name))
 
     def persist_csv_rows(self,
                          cur,
@@ -345,18 +443,13 @@ class SnowflakeTarget(SQLInterface):
         canonicalized_key_properties = [self.fetch_column_from_path((key_property,), remote_schema)[0]
                                         for key_property in remote_schema['key_properties']]
 
-        merge_sql = self._get_merge_sql(remote_schema['name'],
-                                        temp_table_name,
-                                        canonicalized_key_properties,
-                                        columns,
-                                        subkeys)
-
-        cur.execute(merge_sql)
-
-        cur.execute('DROP TABLE {}.{}.{}'.format(
-            sql.identifier(self.connection.database),
-            sql.identifier(self.connection.schema),
-            sql.identifier(temp_table_name)))
+        self.perform_update(
+            cur,
+            remote_schema['name'],
+            temp_table_name,
+            canonicalized_key_properties,
+            columns,
+            subkeys)
 
     def write_table_batch(self, cur, table_batch, metadata):
         remote_schema = table_batch['remote_schema']
@@ -563,7 +656,7 @@ class SnowflakeTarget(SQLInterface):
             _format = 'date-time'
         elif sql_type == 'NUMBER':
             json_type = 'integer'
-        elif sql_type == 'REAL':
+        elif sql_type == 'FLOAT':
             json_type = 'number'
         elif sql_type == 'BOOLEAN':
             json_type = 'boolean'
@@ -608,7 +701,7 @@ class SnowflakeTarget(SQLInterface):
         elif _type == 'integer':
             sql_type = 'NUMBER'
         elif _type == 'number':
-            sql_type = 'REAL'
+            sql_type = 'FLOAT'
 
         if not_null:
             sql_type += ' NOT NULL'

@@ -268,7 +268,7 @@ def test_loading__simple(db_prep):
 
         assert_records(conn, stream.records, 'cats', 'id')
 
-@pytest.mark.xfail
+
 def test_loading__nested_tables(db_prep):
     main(CONFIG, input_stream=NestedStream(10))
 
@@ -297,12 +297,12 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_table_version', 'NUMBER', 'YES'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
                                      ('null', 'NUMBER', 'YES'),
                                      ('nested_null__null', 'NUMBER', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__a', 'NUMBER', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__b', 'NUMBER', 'YES'),
-                                     ('object_of_object_0__object_of_object_1__object_of_object_2__c', 'NUMBER', 'YES')
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__a', 'NUMBER', 'NO'),
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__b', 'NUMBER', 'NO'),
+                                     ('object_of_object_0__object_of_object_1__object_of_object_2__c', 'NUMBER', 'NO')
                                  })
 
             assert_columns_equal(cur,
@@ -311,7 +311,7 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_source_key_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
-                                     ('_sdc_value', 'BOOLEAN', 'YES')
+                                     ('_sdc_value', 'BOOLEAN', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -320,7 +320,7 @@ def test_loading__nested_tables(db_prep):
                                  {
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_source_key_id', 'NUMBER', 'NO'),
-                                     ('_sdc_level_0_id', 'NUMBER', 'NO')
+                                     ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -330,7 +330,7 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_source_key_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
-                                     ('_sdc_level_1_id', 'NUMBER', 'NO')
+                                     ('_sdc_level_1_id', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -342,11 +342,11 @@ def test_loading__nested_tables(db_prep):
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_1_id', 'NUMBER', 'NO'),
                                      ('_sdc_level_2_id', 'NUMBER', 'NO'),
-                                     ('_sdc_value', 'NUMBER', 'YES')
+                                     ('_sdc_value', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
-@pytest.mark.xfail
+
 def test_loading__new_non_null_column(db_prep):
     cat_count = 50
     main(CONFIG, input_stream=CatStream(cat_count))
@@ -377,12 +377,12 @@ def test_loading__new_non_null_column(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
-                                     ('name', 'TEXT', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
+                                     ('name', 'TEXT', 'NO'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
                                      ('paw_toe_count', 'NUMBER', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
@@ -403,7 +403,7 @@ def test_loading__new_non_null_column(db_prep):
             assert cat_count == len([x for x in persisted_records if x[1] is None])
             assert cat_count == len([x for x in persisted_records if x[1] is not None])
 
-@pytest.mark.xfail
+
 def test_loading__column_type_change(db_prep):
     cat_count = 20
     main(CONFIG, input_stream=CatStream(cat_count))
@@ -421,11 +421,11 @@ def test_loading__column_type_change(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
-                                     ('name', 'TEXT', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
+                                     ('name', 'TEXT', 'NO'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
@@ -469,12 +469,12 @@ def test_loading__column_type_change(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
                                      ('name__s', 'TEXT', 'YES'),
                                      ('name__b', 'BOOLEAN', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
@@ -521,13 +521,13 @@ def test_loading__column_type_change(db_prep):
                                      ('adoption__adopted_on', 'TIMESTAMP_TZ', 'YES'),
                                      ('adoption__was_foster', 'BOOLEAN', 'YES'),
                                      ('age', 'NUMBER', 'YES'),
-                                     ('id', 'NUMBER', 'YES'),
+                                     ('id', 'NUMBER', 'NO'),
                                      ('name__s', 'TEXT', 'YES'),
                                      ('name__b', 'BOOLEAN', 'YES'),
                                      ('name__i', 'NUMBER', 'YES'),
-                                     ('paw_size', 'NUMBER', 'YES'),
-                                     ('paw_colour', 'TEXT', 'YES'),
-                                     ('flea_check_complete', 'BOOLEAN', 'YES'),
+                                     ('paw_size', 'NUMBER', 'NO'),
+                                     ('paw_colour', 'TEXT', 'NO'),
+                                     ('flea_check_complete', 'BOOLEAN', 'NO'),
                                      ('pattern', 'TEXT', 'YES')
                                  })
 
@@ -552,7 +552,7 @@ def test_loading__column_type_change(db_prep):
                 [x for x in persisted_records if x[0] is not None and x[1] is not None and x[2] is not None])
             assert 0 == len([x for x in persisted_records if x[0] is None and x[1] is None and x[2] is None])
 
-@pytest.mark.xfail
+
 def test_loading__multi_types_columns(db_prep):
     stream_count = 50
     main(CONFIG, input_stream=MultiTypeStream(stream_count))
@@ -562,29 +562,29 @@ def test_loading__multi_types_columns(db_prep):
             assert_columns_equal(cur,
                                  'root',
                                  {
-                                     ('_sdc_primary_key', 'TEXT', 'YES'),
+                                     ('_sdc_primary_key', 'TEXT', 'NO'),
                                      ('_sdc_batched_at', 'TIMESTAMP_TZ', 'YES'),
                                      ('_sdc_received_at', 'TIMESTAMP_TZ', 'YES'),
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
                                      ('_sdc_table_version', 'NUMBER', 'YES'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                      ('every_type__i', 'NUMBER', 'YES'),
-                                     ('every_type__f', 'double precision', 'YES'),
+                                     ('every_type__f', 'FLOAT', 'YES'),
                                      ('every_type__b', 'BOOLEAN', 'YES'),
                                      ('every_type__t', 'TIMESTAMP_TZ', 'YES'),
                                      ('every_type__i__1', 'NUMBER', 'YES'),
-                                     ('every_type__f__1', 'double precision', 'YES'),
+                                     ('every_type__f__1', 'FLOAT', 'YES'),
                                      ('every_type__b__1', 'BOOLEAN', 'YES'),
-                                     ('number_which_only_comes_as_integer', 'double precision', 'YES')
+                                     ('number_which_only_comes_as_integer', 'FLOAT', 'NO')
                                  })
 
             assert_columns_equal(cur,
                                  'root__every_type',
                                  {
-                                     ('_sdc_source_key__sdc_primary_key', 'TEXT', 'YES'),
+                                     ('_sdc_source_key__sdc_primary_key', 'TEXT', 'NO'),
                                      ('_sdc_level_0_id', 'NUMBER', 'NO'),
                                      ('_sdc_sequence', 'NUMBER', 'YES'),
-                                     ('_sdc_value', 'NUMBER', 'YES'),
+                                     ('_sdc_value', 'NUMBER', 'NO'),
                                      ('_sdc_target_snowflake_create_table_placeholder', 'BOOLEAN', 'YES'),
                                  })
 
@@ -602,7 +602,7 @@ def test_loading__multi_types_columns(db_prep):
             assert stream_count == len(persisted_records)
             assert stream_count == len([x for x in persisted_records if isinstance(x[0], float)])
 
-@pytest.mark.xfail
+
 def test_upsert(db_prep):
     stream = CatStream(100)
     main(CONFIG, input_stream=stream)
@@ -628,7 +628,7 @@ def test_upsert(db_prep):
             assert_count_equal(cur, 'cats', 200)
         assert_records(conn, stream.records, 'cats', 'id')
 
-@pytest.mark.xfail
+
 def test_nested_delete_on_parent(db_prep):
     stream = CatStream(100, nested_count=3)
     main(CONFIG, input_stream=stream)
@@ -650,7 +650,7 @@ def test_nested_delete_on_parent(db_prep):
 
     assert low_nested < high_nested
 
-@pytest.mark.xfail
+
 def test_full_table_replication(db_prep):
     stream = CatStream(110, version=0, nested_count=3)
     main(CONFIG, input_stream=stream)
@@ -736,7 +736,7 @@ def test_deduplication_newer_rows(db_prep):
     for record in dup_cat_records:
         assert record[0] == stream.sequence + 200
 
-@pytest.mark.xfail
+
 def test_deduplication_older_rows(db_prep):
     stream = CatStream(100, nested_count=2, duplicates=2, duplicate_sequence_delta=-100)
     main(CONFIG, input_stream=stream)
@@ -767,7 +767,7 @@ def test_deduplication_older_rows(db_prep):
     for record in dup_cat_records:
         assert record[0] == stream.sequence
 
-@pytest.mark.xfail
+
 def test_deduplication_existing_new_rows(db_prep):
     stream = CatStream(100, nested_count=2)
     main(CONFIG, input_stream=stream)
@@ -789,7 +789,6 @@ def test_deduplication_existing_new_rows(db_prep):
             cur.execute('''
                 SELECT DISTINCT "_sdc_sequence"
                 FROM {}.{}.{}
-                WHERE "id" in ({})
             '''.format(
                 sql.identifier(conn.database),
                 sql.identifier(conn.schema),
