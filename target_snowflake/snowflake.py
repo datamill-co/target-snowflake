@@ -333,15 +333,17 @@ class SnowflakeTarget(SQLInterface):
         pk_null = ' AND '.join(pk_null_list)
         cxt_where = ' AND '.join(cxt_where_list)
 
+        sequence_identifier = sql.identifier(self.canonicalize_identifier(SINGER_SEQUENCE))
+
         sequence_join = ' AND "dedupped".{} >= {}.{}'.format(
-            SINGER_SEQUENCE,
+            sequence_identifier,
             full_table_name,
-            SINGER_SEQUENCE)
+            sequence_identifier)
 
         distinct_order_by = ' ORDER BY {}, {}.{} DESC'.format(
             pk_temp_select,
             full_temp_table_name,
-            SINGER_SEQUENCE)
+            sequence_identifier)
 
         if len(subkeys) > 0:
             pk_temp_subkey_select_list = []
@@ -353,7 +355,7 @@ class SnowflakeTarget(SQLInterface):
             insert_distinct_order_by = ' ORDER BY {}, {}.{} DESC'.format(
                 insert_distinct_on,
                 full_temp_table_name,
-                SINGER_SEQUENCE)
+                sequence_identifier)
         else:
             insert_distinct_on = pk_temp_select
             insert_distinct_order_by = distinct_order_by
@@ -460,7 +462,7 @@ class SnowflakeTarget(SQLInterface):
 
 
         ## Create temp table to upload new data to
-        _target_table_name = 'TMP_' + str(uuid.uuid4()).replace('-', '_')
+        _target_table_name = 'tmp_' + str(uuid.uuid4()).replace('-', '_')
         _target_schema = deepcopy(remote_schema)
         _target_schema['path'] = (_target_table_name,)
         target_schema = self.upsert_table_helper(cur,
