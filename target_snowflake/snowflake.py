@@ -32,7 +32,7 @@ class SnowflakeTarget(SQLInterface):
     CREATE_TABLE_INITIAL_COLUMN = '_SDC_TARGET_SNOWFLAKE_CREATE_TABLE_PLACEHOLDER'
     CREATE_TABLE_INITIAL_COLUMN_TYPE = 'BOOLEAN'
 
-    def __init__(self, connection, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
+    def __init__(self, connection, *args, s3=None, logging_level=None, persist_empty_tables=False, **kwargs):
         self.LOGGER.info('SnowflakeTarget created. Connected to WAREHOUSE: `{}` DB: `{}` SCHEMA: `{}`'.format(
             connection.configured_warehouse,
             connection.configured_database,

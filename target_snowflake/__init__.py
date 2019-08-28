@@ -13,8 +13,7 @@ REQUIRED_CONFIG_KEYS = [
     'snowflake_warehouse',
     'snowflake_database',
     'snowflake_username',
-    'snowflake_password',
-    'target_s3'
+    'snowflake_password'
 ]
 
 
@@ -30,14 +29,16 @@ def main(config, input_stream=None):
     ) as connection:
         s3_config = config.get('target_s3')
 
-        s3 = S3(s3_config.get('aws_access_key_id'),
-                s3_config.get('aws_secret_access_key'),
-                s3_config.get('bucket'),
-                s3_config.get('key_prefix'))
+        s3 = None
+        if s3_config:
+            s3 = S3(s3_config.get('aws_access_key_id'),
+                    s3_config.get('aws_secret_access_key'),
+                    s3_config.get('bucket'),
+                    s3_config.get('key_prefix'))
 
         target = SnowflakeTarget(
             connection,
-            s3,
+            s3=s3,
             logging_level=config.get('logging_level'),
             persist_empty_tables=config.get('persist_empty_tables')
         )
