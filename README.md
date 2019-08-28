@@ -92,7 +92,7 @@ here.
 
 - [Snowflake SQL Identifiers](https://docs.snowflake.net/manuals/sql-reference/identifiers-syntax.html):
   - Although Snowflake supports quoted identifiers to have non-alphanumeric values, `target-snowflake` limits
-    identifiers to lowercase alphanumerics, and underscores
+    identifiers to uppercase alphanumerics, and underscores
   - This is done to make querability/useability in Snowflake simpler, so as to not require users to _have_ to use
     sometimes cumbersome quotes to query their data
 - Requires a [JSON Schema](https://json-schema.org/) for every stream.
