@@ -4,7 +4,7 @@ from datetime import datetime
 from psycopg2 import sql
 import pytest
 
-from fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, TEST_DB
+from fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, S3_CONFIG, TEST_DB
 from target_postgres import singer_stream
 from target_postgres.target_tools import TargetError
 
@@ -229,6 +229,52 @@ def test_loading__empty__enabled_config__repeatability(db_prep):
 def test_loading__simple(db_prep):
     stream = CatStream(100)
     main(CONFIG, input_stream=stream)
+
+    with connect(**TEST_DB) as conn:
+        with conn.cursor() as cur:
+            assert_columns_equal(cur,
+                                 'CATS',
+                                 {
+                                     ('_SDC_BATCHED_AT', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_SDC_RECEIVED_AT', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_SDC_SEQUENCE', 'NUMBER', 'YES'),
+                                     ('_SDC_TABLE_VERSION', 'NUMBER', 'YES'),
+                                     ('_SDC_TARGET_SNOWFLAKE_CREATE_TABLE_PLACEHOLDER', 'BOOLEAN', 'YES'),
+                                     ('ADOPTION__ADOPTED_ON', 'TIMESTAMP_TZ', 'YES'),
+                                     ('ADOPTION__WAS_FOSTER', 'BOOLEAN', 'YES'),
+                                     ('AGE', 'NUMBER', 'YES'),
+                                     ('ID', 'NUMBER', 'NO'),
+                                     ('NAME', 'TEXT', 'NO'),
+                                     ('PAW_SIZE', 'NUMBER', 'NO'),
+                                     ('PAW_COLOUR', 'TEXT', 'NO'),
+                                     ('FLEA_CHECK_COMPLETE', 'BOOLEAN', 'NO'),
+                                     ('PATTERN', 'TEXT', 'YES')
+                                 })
+
+            assert_columns_equal(cur,
+                                 'CATS__ADOPTION__IMMUNIZATIONS',
+                                 {
+                                     ('_SDC_LEVEL_0_ID', 'NUMBER', 'NO'),
+                                     ('_SDC_SEQUENCE', 'NUMBER', 'YES'),
+                                     ('_SDC_SOURCE_KEY_ID', 'NUMBER', 'NO'),
+                                     ('_SDC_TARGET_SNOWFLAKE_CREATE_TABLE_PLACEHOLDER', 'BOOLEAN', 'YES'),
+                                     ('DATE_ADMINISTERED', 'TIMESTAMP_TZ', 'YES'),
+                                     ('TYPE', 'TEXT', 'YES')
+                                 })
+
+            assert_count_equal(cur, 'CATS', 100)
+
+        for record in stream.records:
+            record['paw_size'] = 314159
+            record['paw_colour'] = ''
+            record['flea_check_complete'] = False
+
+        assert_records(conn, stream.records, 'CATS', 'ID')
+
+
+def test_loading__simple__s3_staging(db_prep):
+    stream = CatStream(100)
+    main(S3_CONFIG, input_stream=stream)
 
     with connect(**TEST_DB) as conn:
         with conn.cursor() as cur:

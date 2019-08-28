@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import logging
+import os
 import re
 import uuid
 
@@ -32,7 +33,7 @@ class SnowflakeTarget(SQLInterface):
     CREATE_TABLE_INITIAL_COLUMN = '_SDC_TARGET_SNOWFLAKE_CREATE_TABLE_PLACEHOLDER'
     CREATE_TABLE_INITIAL_COLUMN_TYPE = 'BOOLEAN'
 
-    def __init__(self, connection, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
+    def __init__(self, connection, *args, s3=None, logging_level=None, persist_empty_tables=False, **kwargs):
         self.LOGGER.info('SnowflakeTarget created. Connected to WAREHOUSE: `{}` DB: `{}` SCHEMA: `{}`'.format(
             connection.configured_warehouse,
             connection.configured_database,
@@ -412,6 +413,16 @@ class SnowflakeTarget(SQLInterface):
                 insert_columns=insert_columns,
                 dedupped_columns=dedupped_columns))
 
+        # Clear out the associated stage for the table
+        cur.execute('''
+            REMOVE @{db}.{schema}.%{temp_table}
+        '''.format(
+            db=sql.identifier(self.connection.configured_database),
+            schema=sql.identifier(self.connection.configured_schema),
+            temp_table=sql.identifier(temp_table_name)
+        ))
+
+        # Drop the tmp table
         cur.execute('''
             DROP TABLE {temp_table};
             '''.format(temp_table=full_temp_table_name))
@@ -422,26 +433,60 @@ class SnowflakeTarget(SQLInterface):
                          temp_table_name,
                          columns,
                          csv_rows):
-        key_prefix = temp_table_name + SEPARATOR
+        params = []
 
-        bucket, key = self.s3.persist(csv_rows,
-                                      key_prefix=key_prefix)
+        if self.s3:
+            bucket, key = self.s3.persist(csv_rows,
+                                          key_prefix=temp_table_name + SEPARATOR)
+            stage_location = "'s3://{bucket}/{key}' credentials=(AWS_KEY_ID=%s AWS_SECRET_KEY=%s)".format(
+                bucket=bucket,
+                key=key)
+            params = [self.s3.credentials()['aws_access_key_id'],
+                      self.s3.credentials()['aws_secret_access_key']]
+        else:
+            stage_location = '@{db}.{schema}.%{table}'.format(
+                db=sql.identifier(self.connection.configured_database),
+                schema=sql.identifier(self.connection.configured_schema),
+                table=sql.identifier(temp_table_name)
+            )
+
+            rel_path = '/tmp/target-snowflake/'
+            file_name = str(uuid.uuid4()).replace('-', '_')
+
+            # Make tmp folder to hold data file
+            os.makedirs(rel_path, exist_ok=True)
+
+            # Write readable csv_rows to file
+            with open(rel_path + file_name, 'wb') as file:
+                line = csv_rows.read()
+                while line:
+                    file.write(line.encode('utf-8'))
+                    line = csv_rows.read()
+
+            # Upload to internal table stage
+            cur.execute('''
+                PUT file://{rel_path}{file_name} {stage_location}
+            '''.format(
+                rel_path=rel_path,
+                file_name=file_name,
+                stage_location=stage_location))
+
+            # Tidy up and remove tmp staging file
+            os.remove(rel_path + file_name)
+
+            stage_location += '/{}'.format(file_name)
 
         cur.execute('''
             COPY INTO {db}.{schema}.{table} ({cols})
-            FROM 's3://{bucket}/{key}'
-                credentials=(AWS_KEY_ID=%s AWS_SECRET_KEY=%s)
+            FROM {stage_location}
             FILE_FORMAT = (TYPE = CSV EMPTY_FIELD_AS_NULL = FALSE)
         '''.format(
             db=sql.identifier(self.connection.configured_database),
             schema=sql.identifier(self.connection.configured_schema),
             table=sql.identifier(temp_table_name),
             cols=','.join([sql.identifier(x) for x in columns]),
-            bucket=bucket,
-            key=key),
-            params=[
-                self.s3.credentials()['aws_access_key_id'],
-                self.s3.credentials()['aws_secret_access_key']])
+            stage_location=stage_location),
+        params=params)
 
         pattern = re.compile(SINGER_LEVEL.upper().format('[0-9]+'))
         subkeys = list(filter(lambda header: re.match(pattern, header) is not None, columns))

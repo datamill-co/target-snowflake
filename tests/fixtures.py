@@ -17,13 +17,17 @@ CONFIG = {
     'snowflake_schema': os.environ['SNOWFLAKE_SCHEMA'],
     'snowflake_username': os.environ['SNOWFLAKE_USERNAME'],
     'snowflake_password': os.environ['SNOWFLAKE_PASSWORD'],
+    'disable_collection': True,
+    'logging_level': 'DEBUG'
+}
+
+S3_CONFIG = {
     'target_s3':
         {'aws_access_key_id': os.environ['TARGET_S3_AWS_ACCESS_KEY_ID'],
          'aws_secret_access_key': os.environ['TARGET_S3_AWS_SECRET_ACCESS_KEY'],
          'bucket': os.environ['TARGET_S3_BUCKET'],
          'key_prefix': os.environ['TARGET_S3_KEY_PREFIX']},
-    'disable_collection': True,
-    'logging_level': 'DEBUG'
+    **CONFIG
 }
 
 TEST_DB = {
