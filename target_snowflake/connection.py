@@ -1,10 +1,15 @@
-import time
 import logging
+import re
+import time
 
 import singer
 from snowflake.connector import DictCursor, SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 from snowflake.connector.json_result import DictJsonResult
+
+# Ignore DEBUG, and INFO level messages from Snowflake Connector
+logger = logging.getLogger("snowflake.connector")
+logger.setLevel(logging.WARNING)
 
 
 class MillisLoggingCursor(SnowflakeCursor):
@@ -17,7 +22,7 @@ class MillisLoggingCursor(SnowflakeCursor):
             self.connection.LOGGER.info(
             "MillisLoggingCursor: {} millis spent executing: {}".format(
                 int((time.monotonic() - timestamp) * 1000),
-                command
+                re.sub(r'\n', '  \\\\n  ', command)
             ))
 
         return self

@@ -29,7 +29,7 @@ class SnowflakeTarget(SQLInterface):
     DEFAULT_COLUMN_LENGTH = 1000
     MAX_VARCHAR = 65535
 
-    CREATE_TABLE_INITIAL_COLUMN = '_sdc_target_snowflake_create_table_placeholder'
+    CREATE_TABLE_INITIAL_COLUMN = '_SDC_TARGET_SNOWFLAKE_CREATE_TABLE_PLACEHOLDER'
     CREATE_TABLE_INITIAL_COLUMN_TYPE = 'BOOLEAN'
 
     def __init__(self, connection, s3, *args, logging_level=None, persist_empty_tables=False, **kwargs):
@@ -198,7 +198,7 @@ class SnowflakeTarget(SQLInterface):
                                     sql.identifier(self.connection.configured_schema)),
                                 'stream_table_old': sql.identifier(table_name +
                                                                 SEPARATOR +
-                                                                'old'),
+                                                                'OLD'),
                                 'stream_table': sql.identifier(table_name),
                                 'version_table': sql.identifier(versioned_table_name)}
 
@@ -240,7 +240,7 @@ class SnowflakeTarget(SQLInterface):
         if not identifier:
             identifier = '_'
 
-        return re.sub(r'[^\w\d_]', '_', identifier.lower())
+        return re.sub(r'[^\w\d_]', '_', identifier.upper())
 
     def add_key_properties(self, cur, table_name, key_properties):
         if not key_properties:
@@ -333,15 +333,17 @@ class SnowflakeTarget(SQLInterface):
         pk_null = ' AND '.join(pk_null_list)
         cxt_where = ' AND '.join(cxt_where_list)
 
+        sequence_identifier = sql.identifier(self.canonicalize_identifier(SINGER_SEQUENCE))
+
         sequence_join = ' AND "dedupped".{} >= {}.{}'.format(
-            sql.identifier(SINGER_SEQUENCE),
+            sequence_identifier,
             full_table_name,
-            sql.identifier(SINGER_SEQUENCE))
+            sequence_identifier)
 
         distinct_order_by = ' ORDER BY {}, {}.{} DESC'.format(
             pk_temp_select,
             full_temp_table_name,
-            sql.identifier(SINGER_SEQUENCE))
+            sequence_identifier)
 
         if len(subkeys) > 0:
             pk_temp_subkey_select_list = []
@@ -353,7 +355,7 @@ class SnowflakeTarget(SQLInterface):
             insert_distinct_order_by = ' ORDER BY {}, {}.{} DESC'.format(
                 insert_distinct_on,
                 full_temp_table_name,
-                sql.identifier(SINGER_SEQUENCE))
+                sequence_identifier)
         else:
             insert_distinct_on = pk_temp_select
             insert_distinct_order_by = distinct_order_by
@@ -441,7 +443,7 @@ class SnowflakeTarget(SQLInterface):
                 self.s3.credentials()['aws_access_key_id'],
                 self.s3.credentials()['aws_secret_access_key']])
 
-        pattern = re.compile(SINGER_LEVEL.format('[0-9]+'))
+        pattern = re.compile(SINGER_LEVEL.upper().format('[0-9]+'))
         subkeys = list(filter(lambda header: re.match(pattern, header) is not None, columns))
 
         canonicalized_key_properties = [self.fetch_column_from_path((key_property,), remote_schema)[0]
@@ -458,15 +460,15 @@ class SnowflakeTarget(SQLInterface):
     def write_table_batch(self, cur, table_batch, metadata):
         remote_schema = table_batch['remote_schema']
 
-        target_table_name = 'tmp_' + str(uuid.uuid4()).replace('-', '_')
 
         ## Create temp table to upload new data to
-        target_schema = deepcopy(remote_schema)
-        target_schema['path'] = (target_table_name,)
-        self.upsert_table_helper(cur,
-                                 target_schema,
-                                 {'version': remote_schema['version']},
-                                 log_schema_changes=False)
+        _target_table_name = 'tmp_' + str(uuid.uuid4()).replace('-', '_')
+        _target_schema = deepcopy(remote_schema)
+        _target_schema['path'] = (_target_table_name,)
+        target_schema = self.upsert_table_helper(cur,
+                                                 _target_schema,
+                                                 {'version': remote_schema['version']},
+                                                 log_schema_changes=False)
 
         ## Make streamable CSV records
         csv_headers = list(remote_schema['schema']['properties'].keys())
@@ -488,7 +490,7 @@ class SnowflakeTarget(SQLInterface):
         ## Persist csv rows
         self.persist_csv_rows(cur,
                               remote_schema,
-                              target_table_name,
+                              target_schema['name'],
                               csv_headers,
                               csv_rows)
 
