@@ -507,13 +507,15 @@ class SnowflakeTarget(SQLInterface):
 
 
         ## Create temp table to upload new data to
-        _target_table_name = 'tmp_' + str(uuid.uuid4()).replace('-', '_')
-        _target_schema = deepcopy(remote_schema)
-        _target_schema['path'] = (_target_table_name,)
-        target_schema = self.upsert_table_helper(cur,
-                                                 _target_schema,
-                                                 {'version': remote_schema['version']},
-                                                 log_schema_changes=False)
+        target_table_name = self.canonicalize_identifier('tmp_' + str(uuid.uuid4()))
+        cur.execute('''
+            CREATE TABLE {db}.{schema}.{temp_table} LIKE {db}.{schema}.{table}
+        '''.format(
+            db=sql.identifier(self.connection.configured_database),
+            schema=sql.identifier(self.connection.configured_schema),
+            temp_table=sql.identifier(target_table_name),
+            table=sql.identifier(remote_schema['name'])
+        ))
 
         ## Make streamable CSV records
         csv_headers = list(remote_schema['schema']['properties'].keys())
@@ -535,7 +537,7 @@ class SnowflakeTarget(SQLInterface):
         ## Persist csv rows
         self.persist_csv_rows(cur,
                               remote_schema,
-                              target_schema['name'],
+                              target_table_name,
                               csv_headers,
                               csv_rows)
 
