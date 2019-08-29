@@ -94,7 +94,7 @@ jobs:
             export TARGET_S3_KEY_PREFIX="circleci_target_snowflake_test_`date +%s`__"
             export SNOWFLAKE_SCHEMA="$TARGET_S3_KEY_PREFIX"
 
-            pytest --verbose
+            pytest --verbose tests/unit
           environment:
             SNOWFLAKE_WAREHOUSE: SINGER_DEV
             SNOWFLAKE_DATABASE: TARGET_SNOWFLAKE_TEST
