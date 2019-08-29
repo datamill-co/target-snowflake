@@ -413,15 +413,6 @@ class SnowflakeTarget(SQLInterface):
                 insert_columns=insert_columns,
                 dedupped_columns=dedupped_columns))
 
-        # Clear out the associated stage for the table
-        cur.execute('''
-            REMOVE @{db}.{schema}.%{temp_table}
-        '''.format(
-            db=sql.identifier(self.connection.configured_database),
-            schema=sql.identifier(self.connection.configured_schema),
-            temp_table=sql.identifier(temp_table_name)
-        ))
-
         # Drop the tmp table
         cur.execute('''
             DROP TABLE {temp_table};
