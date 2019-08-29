@@ -4,7 +4,7 @@ from datetime import datetime
 from psycopg2 import sql
 import pytest
 
-from fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, S3_CONFIG, TEST_DB
+from utils.fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, S3_CONFIG, TEST_DB
 from target_postgres import singer_stream
 from target_postgres.target_tools import TargetError
 

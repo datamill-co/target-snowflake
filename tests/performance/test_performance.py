@@ -9,7 +9,7 @@ import sys
 import time
 import uuid
 
-from fixtures import CatStream, CONFIG, clear_db, create_schema
+from utils.fixtures import CatStream, CONFIG, clear_db, create_schema
 
 from target_snowflake import main
 
@@ -231,7 +231,7 @@ def spit_breakdown(folder, prefix, breakdown, **ids):
 def performance(calls, powers_start, powers_end):
     execution_id = time.strftime('%Y_%m_%d_%H_%M_%S')
     # Make tmp folder to hold performance files
-    folder = '/code/performance/' + execution_id
+    folder = '/code/tmp-performance/' + execution_id
 
     setup_output(folder)
     setup_profiling()
