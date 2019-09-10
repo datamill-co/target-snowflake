@@ -20,9 +20,9 @@ setup(
     py_modules=['target_snowflake'],
     install_requires=[
         'singer-python==5.6.1', # Dependency conflict with snowflake
-        'singer-target-postgres==0.1.11',
+        'singer-target-postgres==0.2.0',
         'snowflake-connector-python==1.9.0',
-        'target-redshift==0.0.10'
+        'target-redshift==0.2.0'
     ],
     setup_requires=[
         "pytest-runner"
