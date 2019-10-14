@@ -1,0 +1,8 @@
+{
+  "snowflake_account": "XXXX.REGION",
+  "snowflake_username": "USERNAME",
+  "snowflake_password": "PASSWORD",
+  "snowflake_database": "DATABASE",
+  "snowflake_schema": "SCHEMA",
+  "snowflake_warehouse": "WAREHOUSE"
+}
