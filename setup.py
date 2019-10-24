@@ -12,7 +12,7 @@ setup(
     name='target-snowflake',
     url='https://github.com/datamill-co/target-snowflake',
     author='datamill',
-    version="0.0.1",
+    version="0.0.2",
     description='Singer.io target for loading data into Snowflake',
     long_description=long_description,
     long_description_content_type='text/markdown',
