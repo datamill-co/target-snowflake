@@ -21,6 +21,8 @@ def main(config, input_stream=None):
     with connect(
             user=config.get('snowflake_username'),
             password=config.get('snowflake_password'),
+            role=config.get('snowflake_role'),
+            authenticator=config.get('snowflake_authenticator', 'snowflake'),
             account=config.get('snowflake_account'),
             warehouse=config.get('snowflake_warehouse'),
             database=config.get('snowflake_database'),

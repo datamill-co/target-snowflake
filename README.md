@@ -33,6 +33,7 @@ pip install target-snowflake
    {
      "snowflake_account": "https://XXXXX.snowflakecomputing.com",
      "snowflake_username": "myuser",
+     "snowflake_role": "myrole",
      "snowflake_password": "1234",
      "snowflake_database": "my_analytics",
      "snowflake_schema": "mytapname",
@@ -68,7 +69,9 @@ here.
 | `snowflake_account`         | `["string"]`          | `N/A`      | `ACCOUNT` might require the `region` and `cloud` platform where your account is located, in the form of: `<your_account_name>.<region_id>.<cloud>` (e.g. `xy12345.east-us-2.azure`) [Refer to Snowflake's documentation about Account](https://docs.snowflake.net/manuals/user-guide/connecting.html#your-snowflake-account-name-and-url) |
 | `snowflake_username`        | `["string"]`          | `N/A`      |                                                                                                                                                                                                                                                                                                                                           |
 | `snowflake_password`        | `["string", "null"]`  | `null`     |                                                                                                                                                                                                                                                                                                                                           |
+| `snowflake_role`            | `["string"]`          | `null`     | If not specified, Snowflake will use the user's default role. |
 | `snowflake_database`        | `["string"]`          | `N/A`      |                                                                                                                                                                                                                                                                                                                                           |
+| `snowflake_authenticator`   | `["string"]`          | `"snowflake"` | Speifies the authentication provider for snowflake to use. Valud options are the internal one ("snowflake"), a browser session ("externalbrowser"), or Okta ("https://<your_okta_account_name>.okta.com"). See the snowflake docs for more details.
 | `snowflake_schema`          | `["string", "null"]`  | `"PUBLIC"` |                                                                                                                                                                                                                                                                                                                                           |
 | `snowflake_warehouse`       | `["string"]`          | `N/A`      |                                                                                                                                                                                                                                                                                                                                           |
 | `invalid_records_detect`    | `["boolean", "null"]` | `true`     | Include `false` in your config to disable crashing on invalid records                                                                                                                                                                                                                                                                     |

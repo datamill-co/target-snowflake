@@ -479,7 +479,7 @@ class SnowflakeTarget(SQLInterface):
         cur.execute('''
             COPY INTO {db}.{schema}.{table} ({cols})
             FROM {stage_location}
-            FILE_FORMAT = (TYPE = CSV EMPTY_FIELD_AS_NULL = FALSE)
+            FILE_FORMAT = (TYPE = CSV EMPTY_FIELD_AS_NULL = FALSE FIELD_OPTIONALLY_ENCLOSED_BY = '"')
         '''.format(
             db=sql.identifier(self.connection.configured_database),
             schema=sql.identifier(self.connection.configured_schema),
