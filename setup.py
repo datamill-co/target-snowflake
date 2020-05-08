@@ -21,8 +21,9 @@ setup(
     install_requires=[
         'singer-python==5.9.0',
         'singer-target-postgres==0.2.4',
-        'snowflake-connector-python==2.2.5',
-        'target-redshift==0.2.4'
+        'target-redshift==0.2.4',
+        'botocore<1.13.0,>=1.12.253',
+        'snowflake-connector-python==2.2.5'
     ],
     setup_requires=[
         "pytest-runner"
