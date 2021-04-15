@@ -56,6 +56,10 @@ class SnowflakeTarget(SQLInterface):
         if self.persist_empty_tables:
             self.LOGGER.debug('SnowflakeTarget is persisting empty tables')
 
+    @property
+    def conn(self):
+        return self.connection
+
     def metrics_tags(self):
         return {'warehouse': self.connection.configured_warehouse,
                 'database': self.connection.configured_database,
