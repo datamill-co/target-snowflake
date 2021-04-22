@@ -32,7 +32,7 @@ def main(config, input_stream=None):
         s3_config = config.get('target_s3')
 
         s3 = None
-        if s3_config:
+        if s3_config and "bucket" in s3_config:
             s3 = S3(s3_config.get('aws_access_key_id'),
                     s3_config.get('aws_secret_access_key'),
                     s3_config.get('bucket'),
