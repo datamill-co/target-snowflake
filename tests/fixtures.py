@@ -221,7 +221,6 @@ class CatStream(FakeStream):
             'adoption': adoption
         }
 
-
 class InvalidCatStream(CatStream):
     def generate_record(self):
         record = CatStream.generate_record(self)
@@ -432,6 +431,29 @@ class MultiTypeStream(FakeStream):
             'number_which_only_comes_as_integer': value_integer
         }
 
+
+SINGLE_CHAR_SCHEMA = {
+    'type': 'SCHEMA',
+    'stream': 'root',
+    'schema': {
+        'additionalProperties': False,
+        'properties': {
+            'x': {
+                'type': 'integer'
+            }
+        }
+    },
+    'key_properties': []
+}
+
+class SingleCharStream(FakeStream):
+    stream = 'root'
+    schema = SINGLE_CHAR_SCHEMA
+
+    def generate_record(self):
+        return {
+            'x': random.randint(-314159265359, 314159265359)
+        }
 
 
 def clear_schema():

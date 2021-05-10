@@ -4,7 +4,7 @@ from datetime import datetime
 from psycopg2 import sql
 import pytest
 
-from fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, S3_CONFIG, TEST_DB
+from fixtures import CatStream, CONFIG, db_prep, MultiTypeStream, NestedStream, SingleCharStream, S3_CONFIG, TEST_DB
 from target_postgres import singer_stream
 from target_postgres.target_tools import TargetError
 
@@ -650,6 +650,40 @@ def test_loading__multi_types_columns(db_prep):
             ## Assert that the column is has migrated data
             assert stream_count == len(persisted_records)
             assert stream_count == len([x for x in persisted_records if isinstance(x[0], float)])
+
+
+def test_loading__single_char_columns(db_prep):
+    stream_count = 50
+    main(CONFIG, input_stream=SingleCharStream(stream_count))
+
+    with connect(**TEST_DB) as conn:
+        with conn.cursor() as cur:
+            assert_columns_equal(cur,
+                                 'ROOT',
+                                 {
+                                     ('_SDC_PRIMARY_KEY', 'TEXT', 'NO'),
+                                     ('_SDC_BATCHED_AT', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_SDC_RECEIVED_AT', 'TIMESTAMP_TZ', 'YES'),
+                                     ('_SDC_SEQUENCE', 'NUMBER', 'YES'),
+                                     ('_SDC_TABLE_VERSION', 'NUMBER', 'YES'),
+                                     ('_SDC_TARGET_SNOWFLAKE_CREATE_TABLE_PLACEHOLDER', 'BOOLEAN', 'YES'),
+                                     ('X', 'NUMBER', 'YES')
+                                 })
+
+            cur.execute('''
+                SELECT {} FROM {}.{}.{}
+            '''.format(
+                sql.identifier('X'),
+                sql.identifier(CONFIG['snowflake_database']),
+                sql.identifier(CONFIG['snowflake_schema']),
+                sql.identifier('ROOT')
+            ))
+            persisted_records = cur.fetchall()
+
+            ## Assert that the column is has migrated data
+            assert stream_count == len(persisted_records)
+            assert stream_count == len([x for x in persisted_records if isinstance(x[0], float)])
+
 
 
 def test_upsert(db_prep):
