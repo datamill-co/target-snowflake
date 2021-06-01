@@ -526,7 +526,7 @@ class SnowflakeTarget(SQLInterface):
                 row = next(rows_iter)
 
                 with io.StringIO() as out:
-                    writer = csv.DictWriter(out, csv_headers)
+                    writer = csv.DictWriter(out, csv_headers, quoting=csv.QUOTE_NONNUMERIC)
                     writer.writerow(row)
                     return out.getvalue()
             except StopIteration:
