@@ -583,8 +583,8 @@ class SnowflakeTarget(SQLInterface):
             '''.format(
             database=sql.identifier(self.connection.configured_database),
             table_schema=sql.identifier(self.connection.configured_schema),
-            table_name=sql.Identifier(table_name),
-            column_name=sql.Identifier(column_name)))
+            table_name=sql.identifier(table_name),
+            column_name=sql.identifier(column_name)))
 
     def _set_table_metadata(self, cur, table_name, metadata):
         """
