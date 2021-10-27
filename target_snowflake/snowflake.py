@@ -288,7 +288,7 @@ class SnowflakeTarget(SQLInterface):
 
     def serialize_table_record_null_value(self, remote_schema, streamed_schema, field, value):
         if value is None:
-            return '\\\\N'
+            return '\\N'
         return value
 
     def serialize_table_record_datetime_value(self, remote_schema, streamed_schema, field, value):
@@ -521,12 +521,15 @@ class SnowflakeTarget(SQLInterface):
         csv_headers = list(remote_schema['schema']['properties'].keys())
         rows_iter = iter(table_batch['records'])
 
+        csv_dialect = csv.unix_dialect()
+        csv_dialect.escapechar = '\\'
+
         def transform():
             try:
                 row = next(rows_iter)
 
                 with io.StringIO() as out:
-                    writer = csv.DictWriter(out, csv_headers)
+                    writer = csv.DictWriter(out, csv_headers, dialect=csv_dialect)
                     writer.writerow(row)
                     return out.getvalue()
             except StopIteration:
